@@ -1,0 +1,48 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-fondo: oklch(0.98 0.005 260);
+  --color-superficie: oklch(1 0 0);
+  --color-borde: oklch(0.9 0.008 260);
+  --color-tinta: oklch(0.25 0.02 260);
+  --color-tenue: oklch(0.55 0.02 260);
+  --color-acento: oklch(0.55 0.15 255);
+  --color-positivo: oklch(0.6 0.13 155);
+  --color-negativo: oklch(0.58 0.16 25);
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-fondo: oklch(0.19 0.02 260);
+    --color-superficie: oklch(0.24 0.02 260);
+    --color-borde: oklch(0.32 0.02 260);
+    --color-tinta: oklch(0.96 0.005 260);
+    --color-tenue: oklch(0.72 0.02 260);
+    --color-acento: oklch(0.72 0.13 255);
+    --color-positivo: oklch(0.75 0.14 155);
+    --color-negativo: oklch(0.72 0.15 25);
+  }
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background-color: var(--color-fondo);
+  color: var(--color-tinta);
+  -webkit-font-smoothing: antialiased;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+/* Los importes se leen mejor alineados cuando todas las cifras miden igual. */
+.cifras {
+  font-variant-numeric: tabular-nums;
+}
