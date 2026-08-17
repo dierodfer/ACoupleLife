@@ -176,15 +176,24 @@ export async function elegirArchivo(): Promise<string | null> {
   if (!picker) throw new ErrorDrive('No se pudo cargar el selector de Google.')
 
   return new Promise<string | null>((resolve) => {
-    const vista = new picker.DocsView(picker.ViewId.DOCS)
-      .setMimeTypes('application/json')
-      .setIncludeFolders(true)
+    const vista = (etiqueta: string, propios: boolean) => {
+      const v = new picker.DocsView(picker.ViewId.DOCS)
+        .setMimeTypes('application/json')
+        .setOwnedByMe(propios)
+      // `setLabel` no está en todas las versiones del Picker; sin él las pestañas
+      // salen con el nombre por defecto, que es peor pero no rompe nada.
+      v.setLabel?.(etiqueta)
+      return v
+    }
 
     new picker.PickerBuilder()
-      .addView(vista)
+      // El caso habitual es el segundo usuario abriendo lo que le han
+      // compartido, y eso no vive en su unidad, así que esa pestaña va primero.
+      .addView(vista('Compartido conmigo', false))
+      .addView(vista('Mi unidad', true))
       .setOAuthToken(token)
       .setDeveloperKey(clave)
-      .setTitle('Elige el archivo de cuentas compartido')
+      .setTitle(`Elige ${NOMBRE_ARCHIVO}`)
       .setCallback((datos) => {
         const accion = datos[picker.Response.ACTION]
         if (accion === picker.Action.PICKED) {

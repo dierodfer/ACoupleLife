@@ -44,23 +44,28 @@ export function PantallaAcceso() {
         <Tarjeta className="flex flex-col gap-4">
           <div>
             <h2 className="font-medium">Hola{usuario ? `, ${usuario.nombre}` : ''}</h2>
-            <p className="mt-1 text-sm text-tenue">
-              Si eres la primera persona, crea el archivo. Si tu pareja ya lo creó y te lo
-              ha compartido, conéctalo.
+            <p className="mt-1 text-sm text-tenue">¿Tu pareja ya está usando la aplicación?</p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Boton variante="principal" disabled={cargando} onClick={() => void conectarArchivo()}>
+              Sí, abrir nuestras cuentas
+            </Boton>
+            <p className="text-xs text-tenue">
+              Google te pedirá que elijas el archivo <strong>cuentas-pareja.json</strong> una
+              sola vez. Después la aplicación lo recuerda.
             </p>
           </div>
 
-          <Boton variante="principal" disabled={cargando} onClick={() => void crearArchivo()}>
-            {cargando ? 'Creando…' : 'Crear archivo nuevo'}
-          </Boton>
-          <Boton disabled={cargando} onClick={() => void conectarArchivo()}>
-            Conectar archivo existente
-          </Boton>
-
-          <p className="text-xs text-tenue">
-            Al conectar un archivo existente hay que elegirlo una sola vez en el selector de
-            Google. Después la aplicación lo recuerda.
-          </p>
+          <div className="flex flex-col gap-2 border-t border-borde pt-4">
+            <Boton disabled={cargando} onClick={() => void crearArchivo()}>
+              {cargando ? 'Creando…' : 'No, empezar de cero'}
+            </Boton>
+            <p className="text-xs text-tenue">
+              Se creará el archivo en tu Drive. Luego podrás invitar a tu pareja desde
+              Ajustes.
+            </p>
+          </div>
         </Tarjeta>
       )}
     </main>

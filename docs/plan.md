@@ -246,9 +246,10 @@ No hay servidores propios ni backend. El coste de infraestructura se mantiene pr
 - La aplicación usa **Google Login** para identificar a los miembros de la pareja.
 - Scope de Drive: **`drive.file`** (acceso solo a archivos/carpetas creados por la propia app), no el scope completo `drive`, ya que este último exige pasar el proceso de verificación de Google, innecesario para una app de dos usuarios.
 - **Sin backend solo cabe el token flow** de Google Identity Services: devuelve un access token de aproximadamente una hora y **no hay refresh token**. La aplicación lo renueva en silencio cuando le quedan menos de cinco minutos y nunca guarda el token en disco.
-- Implicación de `drive.file`: el segundo usuario no ve automáticamente el archivo creado por el primero, aunque esté compartido en Drive. La primera vez debe conectarlo explícitamente mediante el selector de Google (Google Picker); a partir de ahí la app conserva el permiso.
-- **La app sí puede gestionar los permisos del archivo que ella misma creó**, así que el primer usuario puede invitar al segundo por email desde la propia aplicación, sin pasar por la web de Drive.
-- La UI de onboarding contempla dos flujos: **"Crear archivo nuevo"** (primer usuario) y **"Conectar archivo existente"** (segundo usuario).
+- **La app sí puede gestionar los permisos del archivo que ella misma creó**, así que el primer usuario invita al segundo por email desde la propia aplicación, sin pasar por la web de Drive.
+- Implicación de `drive.file` que no se puede evitar: compartir el archivo **no basta**. El segundo usuario tiene que señalarlo una vez en el selector de Google (Google Picker) para autorizar a la app; a partir de ahí el permiso queda concedido y no vuelve a aparecer. Es una condición de Google, no una decisión de diseño: sin ella, una app con `drive.file` podría acceder a cualquier archivo con solo conocer su id.
+- El onboarding se plantea como **una sola pregunta** —"¿tu pareja ya está usando la aplicación?"— en lugar de como dos operaciones técnicas. La respuesta afirmativa abre el selector; la negativa crea el archivo.
+- El selector se abre con la pestaña **"Compartido conmigo"** en primer lugar, porque el archivo del segundo usuario no está en su unidad y la vista por defecto le aparecería vacía. La segunda pestaña, "Mi unidad", cubre el caso de reconectar el archivo propio desde otro dispositivo.
 - El origen de GitHub Pages debe figurar en los orígenes autorizados de JavaScript del cliente de OAuth.
 
 ---

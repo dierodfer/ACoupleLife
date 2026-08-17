@@ -435,10 +435,10 @@ function Compartir({ datos }: { datos: Datos }) {
 
   return (
     <Tarjeta className="flex flex-col gap-3">
-      <h3 className="font-medium">Compartir el archivo</h3>
+      <h3 className="font-medium">Invitar a tu pareja</h3>
       <p className="text-sm text-tenue">
-        Da acceso de edición al archivo de Drive. La otra persona, además, tendrá que
-        conectarlo una vez desde su móvil con el selector de Google.
+        Le da acceso de edición al archivo. Cuando entre en la aplicación, solo tendrá que
+        responder que sí a «¿tu pareja ya está usando la aplicación?» y elegir el archivo.
       </p>
 
       {!otra?.email && (

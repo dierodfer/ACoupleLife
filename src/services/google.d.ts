@@ -45,8 +45,9 @@ declare global {
 
 export interface DocsView {
   setMimeTypes(tipos: string): DocsView
-  setIncludeFolders(incluir: boolean): DocsView
   setOwnedByMe(propio: boolean): DocsView
+  /** No está en todas las versiones del Picker: llamar siempre con `?.`. */
+  setLabel?(etiqueta: string): DocsView
 }
 
 export interface PickerBuilder {
