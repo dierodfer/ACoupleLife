@@ -1,5 +1,5 @@
 import { useStore } from '../store/useStore'
-import { Aviso, Boton, Tarjeta } from './ui'
+import { Aviso, Boton, Grupo } from './ui'
 
 /**
  * Login y onboarding. El onboarding tiene dos caminos porque el scope
@@ -18,55 +18,54 @@ export function PantallaAcceso() {
   const cargando = estado === 'cargando'
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-6">
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-8 px-5 py-10">
       <header className="text-center">
-        <h1 className="text-2xl font-semibold">Cuentas de pareja</h1>
-        <p className="mt-2 text-sm text-tenue">
-          ¿Cuánto tengo que transferir este mes?
-        </p>
+        <h1 className="titulo-grande">Cuentas de pareja</h1>
+        <p className="mt-2 text-[17px] text-tenue">¿Cuánto tengo que transferir este mes?</p>
       </header>
 
       {error && <Aviso tono="error">{error}</Aviso>}
 
       {estado === 'sinSesion' && (
-        <Tarjeta className="flex flex-col gap-4">
-          <p className="text-sm text-tenue">
-            Los datos se guardan en un archivo de tu propio Google Drive. La aplicación no
-            tiene servidor: solo accede al archivo que ella misma crea.
+        <div className="flex flex-col gap-4">
+          <p className="px-1 text-center text-[15px] text-tenue">
+            Los datos se guardan en un archivo de tu propio Google Drive. La aplicación no tiene
+            servidor: solo accede al archivo que ella misma crea.
           </p>
           <Boton variante="principal" onClick={() => void entrar()}>
             Entrar con Google
           </Boton>
-        </Tarjeta>
+        </div>
       )}
 
       {(estado === 'sinArchivo' || cargando) && (
-        <Tarjeta className="flex flex-col gap-4">
-          <div>
-            <h2 className="font-medium">Hola{usuario ? `, ${usuario.nombre}` : ''}</h2>
-            <p className="mt-1 text-sm text-tenue">¿Tu pareja ya está usando la aplicación?</p>
+        <div className="flex flex-col gap-6">
+          <div className="text-center">
+            <h2 className="titulo-pantalla">Hola{usuario ? `, ${usuario.nombre}` : ''}</h2>
+            <p className="mt-1 text-[15px] text-tenue">¿Tu pareja ya está usando la aplicación?</p>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Boton variante="principal" disabled={cargando} onClick={() => void conectarArchivo()}>
-              Sí, abrir nuestras cuentas
-            </Boton>
-            <p className="text-xs text-tenue">
-              Google te pedirá que elijas el archivo <strong>cuentas-pareja.json</strong> una
-              sola vez. Después la aplicación lo recuerda.
-            </p>
-          </div>
+          <Grupo pie="Google te pedirá que elijas el archivo cuentas-pareja.json una sola vez. Después la aplicación lo recuerda.">
+            <div className="p-4">
+              <Boton
+                variante="principal"
+                className="w-full"
+                disabled={cargando}
+                onClick={() => void conectarArchivo()}
+              >
+                Sí, abrir nuestras cuentas
+              </Boton>
+            </div>
+          </Grupo>
 
-          <div className="flex flex-col gap-2 border-t border-borde pt-4">
-            <Boton disabled={cargando} onClick={() => void crearArchivo()}>
-              {cargando ? 'Creando…' : 'No, empezar de cero'}
-            </Boton>
-            <p className="text-xs text-tenue">
-              Se creará el archivo en tu Drive. Luego podrás invitar a tu pareja desde
-              Ajustes.
-            </p>
-          </div>
-        </Tarjeta>
+          <Grupo pie="Se creará el archivo en tu Drive. Luego podrás invitar a tu pareja desde Ajustes.">
+            <div className="p-4">
+              <Boton className="w-full" disabled={cargando} onClick={() => void crearArchivo()}>
+                {cargando ? 'Creando…' : 'No, empezar de cero'}
+              </Boton>
+            </div>
+          </Grupo>
+        </div>
       )}
     </main>
   )

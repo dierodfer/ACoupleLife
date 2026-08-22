@@ -1,31 +1,79 @@
 import { useState } from 'react'
-import { NOMBRES_MES, etiquetaMes, mesActual, mesKey, partesMes } from '../lib/fechas'
-import { euros, leeImporte } from '../lib/formato'
+import { etiquetaMes, partesMes } from '../lib/fechas'
+import { euros } from '../lib/formato'
+import { renombrarPersona } from '../lib/mutaciones'
+import { nombrePersona } from '../lib/personas'
+import type { Datos } from '../lib/tipos'
+import { drive } from '../services/backend'
+import { ETIQUETAS_PESTANA, useStore } from '../store/useStore'
+import { IconoLapiz, IconoMas, IconoRepetir } from './Iconos'
 import {
-  cambiarEmailPersona,
-  cambiarObjetivoMensual,
-  eliminarEfectivo,
-  eliminarRecurrente,
-  fijarExcepcionObjetivo,
-  guardarEfectivo,
-  guardarRecurrente,
-  renombrarPersona,
-  type ModoCambioObjetivo,
-} from '../lib/mutaciones'
-import type { Datos, PersonaId } from '../lib/tipos'
-import { useStore } from '../store/useStore'
-import { Aviso, Boton, Campo, Entrada, Fila, Selector, Tarjeta, Vacio } from './ui'
-import { compartirCon } from '../services/drive'
+  Aviso,
+  Boton,
+  CabeceraVolver,
+  Campo,
+  ControlSegmentado,
+  Entrada,
+  FilaLista,
+  Grupo,
+  TituloGrande,
+  Vacio,
+} from './ui'
 
 export function Ajustes({ datos }: { datos: Datos }) {
+  const volver = useStore((s) => s.volver)
+  const destino = useStore((s) => s.historial[s.historial.length - 1] ?? 'mes')
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
+        <CabeceraVolver destino={ETIQUETAS_PESTANA[destino]} onVolver={volver} />
+        <TituloGrande>Ajustes</TituloGrande>
+      </div>
+
       <Personas datos={datos} />
-      <Objetivos datos={datos} />
-      <Efectivos datos={datos} />
+      <AccesoObjetivos datos={datos} />
       <Recurrentes datos={datos} />
       <Compartir datos={datos} />
+      <Apariencia />
+      <Sesion />
     </div>
+  )
+}
+
+/**
+ * El objetivo tiene pantalla propia: es la configuración más densa de la app
+ * (regla anual más excepciones de cada mes) y no cabe como una tarjeta más.
+ */
+function AccesoObjetivos({ datos }: { datos: Datos }) {
+  const mes = useStore((s) => s.mes)
+  const abrirPestana = useStore((s) => s.abrirPestana)
+  const { anio } = partesMes(mes)
+
+  return (
+    <Grupo titulo="Aportación">
+      {datos.personas.map((persona) => {
+        const objetivo = datos.anios[String(anio)]?.objetivos[persona.id]
+        const excepciones = Object.keys(objetivo?.excepciones ?? {}).length
+        return (
+          <FilaLista
+            key={persona.id}
+            titulo={persona.nombre}
+            detalle={
+              excepciones > 0
+                ? `${excepciones} ${excepciones === 1 ? 'mes con excepción' : 'meses con excepción'}`
+                : undefined
+            }
+            valor={`${euros(objetivo?.importeMensual ?? 0)} / mes`}
+            onClick={() => abrirPestana('objetivos')}
+          />
+        )
+      })}
+      <FilaLista
+        titulo={<span className="text-acento">Configurar objetivo de {anio}</span>}
+        onClick={() => abrirPestana('objetivos')}
+      />
+    </Grupo>
   )
 }
 
@@ -33,379 +81,80 @@ function Personas({ datos }: { datos: Datos }) {
   const aplicar = useStore((s) => s.aplicar)
 
   return (
-    <Tarjeta className="flex flex-col gap-3">
-      <h3 className="font-medium">Personas</h3>
-      <p className="text-sm text-tenue">
-        Cambiar el nombre no afecta al histórico: cada persona se identifica internamente por
-        un id fijo.
-      </p>
+    <Grupo
+      titulo="Personas"
+      pie="El nombre puede cambiarse sin afectar al histórico. El email no se escribe a mano: se vincula solo la primera vez que esa persona entra con su cuenta de Google."
+    >
       {datos.personas.map((persona) => (
-        <div key={persona.id} className="grid gap-2 sm:grid-cols-2">
+        <div key={persona.id} className="flex flex-col gap-3 border-t border-borde p-4 first:border-t-0">
           <Campo etiqueta="Nombre">
             <Entrada
               value={persona.nombre}
               onChange={(e) => aplicar((d) => renombrarPersona(d, persona.id, e.target.value))}
             />
           </Campo>
-          <Campo etiqueta="Email de Google">
-            <Entrada
-              type="email"
-              value={persona.email}
-              placeholder="pareja@gmail.com"
-              onChange={(e) => aplicar((d) => cambiarEmailPersona(d, persona.id, e.target.value))}
-            />
+          <Campo etiqueta="Cuenta de Google">
+            <p className="truncate rounded-fila bg-relleno px-3.5 py-2.5 text-[15px] text-tenue">
+              {persona.email || 'Sin vincular todavía'}
+            </p>
           </Campo>
         </div>
       ))}
-    </Tarjeta>
-  )
-}
-
-/**
- * Objetivos del año. Al cambiar la regla mensual se pregunta siempre si el
- * cambio debe alcanzar a los meses ya pasados o solo a los que vienen.
- */
-function Objetivos({ datos }: { datos: Datos }) {
-  const mes = useStore((s) => s.mes)
-  const aplicar = useStore((s) => s.aplicar)
-  const { anio } = partesMes(mes)
-  const [pendienteDeConfirmar, setPendienteDeConfirmar] = useState<{
-    personaId: PersonaId
-    importe: number
-  } | null>(null)
-
-  const anioEnCurso = partesMes(mesActual()).anio === anio
-  const mesEnCurso = partesMes(mesActual()).mes
-
-  const confirmar = (modo: ModoCambioObjetivo) => {
-    if (!pendienteDeConfirmar) return
-    const { personaId, importe } = pendienteDeConfirmar
-    aplicar((d) => cambiarObjetivoMensual(d, anio, personaId, importe, modo, mesEnCurso))
-    setPendienteDeConfirmar(null)
-  }
-
-  return (
-    <Tarjeta className="flex flex-col gap-3">
-      <h3 className="font-medium">Objetivo mensual · {anio}</h3>
-
-      {datos.personas.map((persona) => {
-        const objetivo = datos.anios[String(anio)]?.objetivos[persona.id]
-        return (
-          <Campo
-            key={persona.id}
-            etiqueta={persona.nombre}
-            ayuda="Importe que esta persona aporta cada mes."
-          >
-            <Entrada
-              type="text"
-              inputMode="decimal"
-              defaultValue={objetivo?.importeMensual ?? 0}
-              key={`${persona.id}-${objetivo?.importeMensual ?? 0}`}
-              onBlur={(e) => {
-                const importe = leeImporte(e.target.value)
-                if (importe === (objetivo?.importeMensual ?? 0)) return
-
-                // Para un año pasado o en enero no hay meses vividos que proteger.
-                if (!anioEnCurso || mesEnCurso === 1) {
-                  aplicar((d) =>
-                    cambiarObjetivoMensual(d, anio, persona.id, importe, 'todoElAnio'),
-                  )
-                  return
-                }
-                setPendienteDeConfirmar({ personaId: persona.id, importe })
-              }}
-            />
-          </Campo>
-        )
-      })}
-
-      {pendienteDeConfirmar && (
-        <Aviso>
-          <span>
-            ¿Aplicar {euros(pendienteDeConfirmar.importe)} desde {NOMBRES_MES[mesEnCurso - 1]}, o
-            también a los meses ya pasados de {anio}?
-          </span>
-          <span className="flex gap-2">
-            <Boton variante="principal" onClick={() => confirmar('desdeEsteMes')}>
-              Solo desde este mes
-            </Boton>
-            <Boton onClick={() => confirmar('todoElAnio')}>Todo el año</Boton>
-            <Boton variante="texto" onClick={() => setPendienteDeConfirmar(null)}>
-              Cancelar
-            </Boton>
-          </span>
-        </Aviso>
-      )}
-
-      <ExcepcionesObjetivo datos={datos} anio={anio} />
-    </Tarjeta>
-  )
-}
-
-/** Meses concretos que rompen la regla general del año. */
-function ExcepcionesObjetivo({ datos, anio }: { datos: Datos; anio: number }) {
-  const aplicar = useStore((s) => s.aplicar)
-  const [personaId, setPersonaId] = useState(datos.personas[0]?.id ?? '')
-  const [mes, setMes] = useState(1)
-  const [importe, setImporte] = useState('')
-
-  const excepciones = datos.personas.flatMap((p) =>
-    Object.entries(datos.anios[String(anio)]?.objetivos[p.id]?.excepciones ?? {}).map(
-      ([m, valor]) => ({ persona: p, mes: Number(m), importe: valor }),
-    ),
-  )
-
-  return (
-    <div className="border-t border-borde pt-3">
-      <h4 className="text-sm font-medium">Excepciones por mes</h4>
-      <div className="mt-1">
-        {excepciones.map(({ persona, mes: m, importe: valor }) => (
-          <Fila
-            key={`${persona.id}-${m}`}
-            concepto={`${NOMBRES_MES[m - 1]} · ${persona.nombre}`}
-            importe={euros(valor)}
-            accion={
-              <Boton
-                variante="texto"
-                aria-label="Quitar excepción"
-                onClick={() => aplicar((d) => fijarExcepcionObjetivo(d, anio, persona.id, m, null))}
-              >
-                ×
-              </Boton>
-            }
-          />
-        ))}
-        {excepciones.length === 0 && <Vacio>Sin excepciones: todos los meses siguen la regla.</Vacio>}
-      </div>
-
-      <form
-        className="mt-2 grid grid-cols-3 gap-2"
-        onSubmit={(e) => {
-          e.preventDefault()
-          aplicar((d) => fijarExcepcionObjetivo(d, anio, personaId, mes, leeImporte(importe)))
-          setImporte('')
-        }}
-      >
-        <Selector value={personaId} onChange={(e) => setPersonaId(e.target.value)}>
-          {datos.personas.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nombre}
-            </option>
-          ))}
-        </Selector>
-        <Selector value={mes} onChange={(e) => setMes(Number(e.target.value))}>
-          {NOMBRES_MES.map((nombre, i) => (
-            <option key={nombre} value={i + 1}>
-              {nombre}
-            </option>
-          ))}
-        </Selector>
-        <Entrada
-          type="text"
-          inputMode="decimal"
-          value={importe}
-          placeholder="Importe"
-          onChange={(e) => setImporte(e.target.value)}
-        />
-        <Boton type="submit" className="col-span-3">
-          Añadir excepción
-        </Boton>
-      </form>
-    </div>
-  )
-}
-
-/**
- * Fila de recurrente o efectivo. El rango va en su propia línea: en un móvil no
- * cabe junto al concepto sin truncarlo.
- */
-function FilaConRango({
-  concepto,
-  nota,
-  importe,
-  desde,
-  hasta,
-  onHasta,
-  onEliminar,
-}: {
-  concepto: string
-  nota?: string
-  importe: string
-  desde: string
-  hasta: string | null
-  onHasta: (hasta: string | null) => void
-  onEliminar: () => void
-}) {
-  return (
-    <div className="border-b border-borde py-2 last:border-0">
-      <div className="flex items-center justify-between gap-2">
-        <span className="min-w-0 truncate text-sm">{concepto}</span>
-        <span className="flex shrink-0 items-center gap-1">
-          <span className="cifras text-sm">{importe}</span>
-          <Boton variante="texto" aria-label="Eliminar" onClick={onEliminar}>
-            ×
-          </Boton>
-        </span>
-      </div>
-      <div className="mt-1 flex items-center gap-2 text-xs text-tenue">
-        <span className="shrink-0">
-          {etiquetaMes(desde)} → {hasta ? '' : 'sin fin'}
-        </span>
-        <Entrada
-          type="month"
-          aria-label="Fin del rango"
-          className="w-40"
-          value={hasta ?? ''}
-          onChange={(e) => onHasta(e.target.value || null)}
-        />
-      </div>
-      {nota && <p className="mt-1 text-xs text-tenue">{nota}</p>}
-    </div>
-  )
-}
-
-function Efectivos({ datos }: { datos: Datos }) {
-  const aplicar = useStore((s) => s.aplicar)
-  const [personaId, setPersonaId] = useState(datos.personas[0]?.id ?? '')
-  const [importe, setImporte] = useState('')
-  const [desde, setDesde] = useState(mesKey(new Date().getFullYear(), 1))
-
-  const nombre = (id: PersonaId) => datos.personas.find((p) => p.id === id)?.nombre ?? '—'
-
-  return (
-    <Tarjeta className="flex flex-col gap-3">
-      <h3 className="font-medium">Efectivo mensual</h3>
-      <p className="text-sm text-tenue">
-        Se considera aportado automáticamente cada mes dentro de su rango. Deja el fin vacío
-        para que siga indefinidamente, también en años futuros.
-      </p>
-
-      <div>
-        {datos.efectivo.map((e) => (
-          <FilaConRango
-            key={e.id}
-            concepto={nombre(e.personaId)}
-            importe={euros(e.importe)}
-            desde={e.desde}
-            hasta={e.hasta}
-            onHasta={(hasta) => aplicar((d) => guardarEfectivo(d, { ...e, hasta }))}
-            onEliminar={() => aplicar((d) => eliminarEfectivo(d, e.id))}
-          />
-        ))}
-        {datos.efectivo.length === 0 && <Vacio>Nadie aporta efectivo por ahora.</Vacio>}
-      </div>
-
-      <form
-        className="grid grid-cols-3 gap-2 border-t border-borde pt-3"
-        onSubmit={(ev) => {
-          ev.preventDefault()
-          const cantidad = leeImporte(importe)
-          if (cantidad <= 0) return
-          aplicar((d) => guardarEfectivo(d, { personaId, importe: cantidad, desde, hasta: null }))
-          setImporte('')
-        }}
-      >
-        <Selector value={personaId} onChange={(e) => setPersonaId(e.target.value)}>
-          {datos.personas.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nombre}
-            </option>
-          ))}
-        </Selector>
-        <Entrada
-          type="text"
-          inputMode="decimal"
-          value={importe}
-          placeholder="Importe"
-          onChange={(e) => setImporte(e.target.value)}
-        />
-        <Entrada type="month" value={desde} onChange={(e) => setDesde(e.target.value)} />
-        <Boton type="submit" className="col-span-3">
-          Añadir efectivo
-        </Boton>
-      </form>
-    </Tarjeta>
+    </Grupo>
   )
 }
 
 function Recurrentes({ datos }: { datos: Datos }) {
-  const aplicar = useStore((s) => s.aplicar)
-  const [personaId, setPersonaId] = useState(datos.personas[0]?.id ?? '')
-  const [concepto, setConcepto] = useState('')
-  const [importe, setImporte] = useState('')
-  const [desde, setDesde] = useState(mesKey(new Date().getFullYear(), 1))
-
-  const nombre = (id: PersonaId) => datos.personas.find((p) => p.id === id)?.nombre ?? '—'
+  const abrirModalGasto = useStore((s) => s.abrirModalGasto)
 
   return (
-    <Tarjeta className="flex flex-col gap-3">
-      <h3 className="font-medium">Gastos recurrentes</h3>
-      <p className="text-sm text-tenue">
-        No se guardan mes a mes: se calculan a partir del rango. Para cambiar el importe de un
-        mes suelto, edítalo desde la pantalla de ese mes.
-      </p>
+    <Grupo
+      titulo="Gastos recurrentes"
+      pie="Se repiten durante un rango de meses y se calculan a partir de él, sin guardarse mes a mes. Para cambiar el importe de un mes suelto, edítalo desde la pantalla de ese mes."
+    >
+      {datos.recurrentes.map((r) => {
+        const ajustes = Object.keys(r.overrides).length
+        return (
+          <FilaLista
+            key={r.id}
+            titulo={
+              <span className="flex items-center gap-1.5">
+                <IconoRepetir className="h-4 w-4 shrink-0 text-sutil" />
+                {r.concepto || 'Recurrente'}
+              </span>
+            }
+            detalle={`${nombrePersona(datos, r.personaId)} · ${etiquetaMes(r.desde)} – ${
+              r.hasta ? etiquetaMes(r.hasta) : 'sin fin'
+            }${ajustes > 0 ? ` · ${ajustes} ajustado${ajustes === 1 ? '' : 's'}` : ''}`}
+            accion={
+              <span className="flex items-center gap-1">
+                <span className="cifras">{euros(r.importe)}</span>
+                <button
+                  type="button"
+                  aria-label={`Editar ${r.concepto || 'recurrente'}`}
+                  onClick={() => abrirModalGasto({ editandoId: r.id })}
+                  className="rounded-full p-1 text-sutil transition active:text-acento"
+                >
+                  <IconoLapiz className="h-4 w-4" />
+                </button>
+              </span>
+            }
+          />
+        )
+      })}
+      {datos.recurrentes.length === 0 && <Vacio>Sin gastos recurrentes.</Vacio>}
 
-      <div>
-        {datos.recurrentes.map((r) => {
-          const ajustes = Object.keys(r.overrides).length
-          return (
-            <FilaConRango
-              key={r.id}
-              concepto={`${r.concepto || 'Recurrente'} · ${nombre(r.personaId)}`}
-              nota={
-                ajustes > 0
-                  ? `${ajustes} ${ajustes === 1 ? 'mes ajustado' : 'meses ajustados'}`
-                  : undefined
-              }
-              importe={euros(r.importe)}
-              desde={r.desde}
-              hasta={r.hasta}
-              onHasta={(hasta) => aplicar((d) => guardarRecurrente(d, { ...r, hasta }))}
-              onEliminar={() => aplicar((d) => eliminarRecurrente(d, r.id))}
-            />
-          )
-        })}
-        {datos.recurrentes.length === 0 && <Vacio>Sin gastos recurrentes.</Vacio>}
-      </div>
-
-      <form
-        className="grid grid-cols-2 gap-2 border-t border-borde pt-3"
-        onSubmit={(ev) => {
-          ev.preventDefault()
-          const cantidad = leeImporte(importe)
-          if (cantidad <= 0) return
-          aplicar((d) =>
-            guardarRecurrente(d, { personaId, concepto, importe: cantidad, desde, hasta: null }),
-          )
-          setConcepto('')
-          setImporte('')
-        }}
-      >
-        <Selector value={personaId} onChange={(e) => setPersonaId(e.target.value)}>
-          {datos.personas.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nombre}
-            </option>
-          ))}
-        </Selector>
-        <Entrada
-          value={concepto}
-          placeholder="Concepto"
-          onChange={(e) => setConcepto(e.target.value)}
-        />
-        <Entrada
-          type="text"
-          inputMode="decimal"
-          value={importe}
-          placeholder="Importe"
-          onChange={(e) => setImporte(e.target.value)}
-        />
-        <Entrada type="month" value={desde} onChange={(e) => setDesde(e.target.value)} />
-        <Boton type="submit" className="col-span-2">
-          Añadir recurrente
-        </Boton>
-      </form>
-    </Tarjeta>
+      <FilaLista
+        titulo={
+          <span className="flex items-center gap-2 text-acento">
+            <IconoMas className="h-5 w-5" />
+            Añadir recurrente
+          </span>
+        }
+        onClick={() => abrirModalGasto({ tipoInicial: 'recurrente' })}
+        sinChevron
+      />
+    </Grupo>
   )
 }
 
@@ -416,16 +165,26 @@ function Recurrentes({ datos }: { datos: Datos }) {
 function Compartir({ datos }: { datos: Datos }) {
   const fileId = useStore((s) => s.fileId)
   const usuario = useStore((s) => s.usuario)
+  const [email, setEmail] = useState('')
   const [estado, setEstado] = useState<'inicial' | 'enviando' | 'hecho' | 'error'>('inicial')
   const [detalle, setDetalle] = useState('')
 
+  // Si ya hay alguien conectado, su email quedó vinculado solo al entrar.
   const otra = datos.personas.find((p) => p.email && p.email !== usuario?.email)
 
+  if (otra) {
+    return (
+      <Grupo titulo="Compartido con">
+        <FilaLista titulo={otra.nombre} detalle={otra.email} />
+      </Grupo>
+    )
+  }
+
   const invitar = async () => {
-    if (!fileId || !otra?.email) return
+    if (!fileId || !email) return
     try {
       setEstado('enviando')
-      await compartirCon(fileId, otra.email)
+      await drive.compartirCon(fileId, email)
       setEstado('hecho')
     } catch (error) {
       setEstado('error')
@@ -434,26 +193,60 @@ function Compartir({ datos }: { datos: Datos }) {
   }
 
   return (
-    <Tarjeta className="flex flex-col gap-3">
-      <h3 className="font-medium">Invitar a tu pareja</h3>
-      <p className="text-sm text-tenue">
-        Le da acceso de edición al archivo. Cuando entre en la aplicación, solo tendrá que
-        responder que sí a «¿tu pareja ya está usando la aplicación?» y elegir el archivo.
-      </p>
+    <Grupo
+      titulo="Invitar a tu pareja"
+      pie="Le da acceso de edición al archivo. En cuanto entre con esta cuenta, el email queda vinculado a la segunda persona automáticamente."
+    >
+      <div className="flex flex-col gap-3 p-4">
+        <Campo etiqueta="Email de Google">
+          <Entrada
+            type="email"
+            value={email}
+            placeholder="pareja@gmail.com"
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </Campo>
 
-      {!otra?.email && (
-        <Aviso>Rellena antes el email de Google de la otra persona.</Aviso>
-      )}
-      {estado === 'hecho' && <Aviso>Invitación enviada a {otra?.email}.</Aviso>}
-      {estado === 'error' && <Aviso tono="error">{detalle}</Aviso>}
+        {estado === 'hecho' && <Aviso>Invitación enviada a {email}.</Aviso>}
+        {estado === 'error' && <Aviso tono="error">{detalle}</Aviso>}
 
-      <Boton
-        variante="principal"
-        disabled={!otra?.email || estado === 'enviando'}
-        onClick={() => void invitar()}
-      >
-        {estado === 'enviando' ? 'Enviando…' : `Invitar a ${otra?.email ?? '…'}`}
-      </Boton>
-    </Tarjeta>
+        <Boton
+          variante="principal"
+          disabled={!email || estado === 'enviando'}
+          onClick={() => void invitar()}
+        >
+          {estado === 'enviando' ? 'Enviando…' : 'Invitar'}
+        </Boton>
+      </div>
+    </Grupo>
+  )
+}
+
+function Apariencia() {
+  const tema = useStore((s) => s.tema)
+  const setTema = useStore((s) => s.setTema)
+
+  return (
+    <Grupo titulo="Apariencia" pie="Se guarda solo en este dispositivo, no en el archivo compartido.">
+      <div className="p-4">
+        <ControlSegmentado
+          valor={tema}
+          onCambiar={setTema}
+          opciones={[
+            { valor: 'claro', etiqueta: 'Claro' },
+            { valor: 'oscuro', etiqueta: 'Oscuro' },
+          ]}
+        />
+      </div>
+    </Grupo>
+  )
+}
+
+function Sesion() {
+  const salir = useStore((s) => s.salir)
+  return (
+    <Grupo>
+      <FilaLista titulo="Cerrar sesión" destructivo onClick={salir} sinChevron />
+    </Grupo>
   )
 }

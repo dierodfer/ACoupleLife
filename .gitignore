@@ -8,3 +8,4 @@ dist-ssr
 .DS_Store
 *.tsbuildinfo
 coverage
+local-data/

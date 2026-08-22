@@ -1,106 +1,93 @@
 import { useState } from 'react'
 import { resumenAnio } from '../lib/calculo'
-import { NOMBRES_MES, partesMes } from '../lib/fechas'
+import { NOMBRES_MES, mesActual, mesKey, partesMes } from '../lib/fechas'
 import { euros, eurosRedondos } from '../lib/formato'
-import type { Datos, PersonaId } from '../lib/tipos'
+import { nombrePersona } from '../lib/personas'
+import type { Datos } from '../lib/tipos'
 import { useStore } from '../store/useStore'
-import { Boton, Fila, Tarjeta } from './ui'
+import { NavegadorAnio } from './RejillaMeses'
+import { Fila, FilaLista, Grupo, Tarjeta, TituloGrande } from './ui'
 
 /** Estado global del año, con acceso directo al anterior para comparar. */
 export function ResumenAnual({ datos }: { datos: Datos }) {
   const mes = useStore((s) => s.mes)
-  const irAMes = useStore((s) => s.irAMes)
+  const verMes = useStore((s) => s.verMes)
   const [anio, setAnio] = useState(partesMes(mes).anio)
 
   const actual = resumenAnio(datos, anio)
   const anterior = resumenAnio(datos, anio - 1)
   const diferencia = actual.objetivo - anterior.objetivo
-
-  const nombre = (id: PersonaId) =>
-    datos.personas.find((p) => p.id === id)?.nombre ?? 'Sin nombre'
+  const hoy = mesActual()
 
   return (
-    <div className="flex flex-col gap-4">
-      <nav className="flex items-center justify-between gap-2">
-        <Boton variante="texto" onClick={() => setAnio(anio - 1)} aria-label="Año anterior">
-          ←
-        </Boton>
-        <span className="font-medium">{anio}</span>
-        <Boton variante="texto" onClick={() => setAnio(anio + 1)} aria-label="Año siguiente">
-          →
-        </Boton>
-      </nav>
+    <div className="flex flex-col gap-6">
+      <TituloGrande>{anio}</TituloGrande>
 
-      <Tarjeta>
-        <Fila concepto="Objetivo del año" importe={eurosRedondos(actual.objetivo)} tono="fuerte" />
-        <Fila concepto="Aportado" importe={eurosRedondos(actual.aportado)} />
-        <Fila concepto="Pendiente" importe={eurosRedondos(actual.pendiente)} tono="fuerte" />
-      </Tarjeta>
+      <div className="rounded-tarjeta bg-superficie px-3 py-2">
+        <NavegadorAnio anio={anio} onCambiar={setAnio} />
+      </div>
 
-      <Tarjeta>
-        <h3 className="font-medium">Por persona</h3>
-        <div className="mt-2">
-          {actual.pendientePorPersona.map((p) => (
-            <Fila
-              key={p.personaId}
-              concepto={`${nombre(p.personaId)} · aportado ${eurosRedondos(p.aportado)}`}
-              importe={eurosRedondos(p.pendiente)}
-            />
-          ))}
+      <Tarjeta className="text-center">
+        <p className="text-[13px] font-medium uppercase tracking-[0.06em] text-tenue">
+          Pendiente del año
+        </p>
+        <p className={`cifra-heroe cifras mt-1.5 ${actual.pendiente > 0 ? '' : 'text-positivo'}`}>
+          {eurosRedondos(actual.pendiente)}
+        </p>
+        <div className="mt-3 border-t border-borde pt-2 text-left">
+          <Fila concepto="Objetivo del año" importe={eurosRedondos(actual.objetivo)} />
+          <Fila concepto="Aportado" importe={eurosRedondos(actual.aportado)} tono="tenue" />
         </div>
       </Tarjeta>
 
-      <Tarjeta>
-        <h3 className="font-medium">Comparación con {anio - 1}</h3>
-        <div className="mt-2">
-          <Fila concepto={`Objetivo ${anio - 1}`} importe={eurosRedondos(anterior.objetivo)} tono="tenue" />
-          <Fila concepto={`Objetivo ${anio}`} importe={eurosRedondos(actual.objetivo)} />
-          <Fila
-            concepto="Evolución"
-            importe={`${diferencia >= 0 ? '+' : ''}${eurosRedondos(diferencia)}`}
-            tono="fuerte"
+      <Grupo titulo="Por persona">
+        {actual.pendientePorPersona.map((p) => (
+          <FilaLista
+            key={p.personaId}
+            titulo={nombrePersona(datos, p.personaId)}
+            detalle={`Aportado ${eurosRedondos(p.aportado)} de ${eurosRedondos(p.objetivo)}`}
+            valor={eurosRedondos(p.pendiente)}
           />
-        </div>
-        <Boton className="mt-3 w-full" onClick={() => setAnio(anio - 1)}>
-          Ver {anio - 1}
-        </Boton>
-      </Tarjeta>
+        ))}
+      </Grupo>
 
-      <Tarjeta>
-        <h3 className="font-medium">Mes a mes</h3>
-        <div className="mt-2 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-tenue">
-                <th className="py-1 font-medium">Mes</th>
-                <th className="py-1 text-right font-medium">Objetivo</th>
-                <th className="py-1 text-right font-medium">Aportado</th>
-                <th className="py-1 text-right font-medium">Pendiente</th>
-              </tr>
-            </thead>
-            <tbody className="cifras">
-              {actual.meses.map((m, i) => (
-                <tr key={m.mes} className="border-t border-borde">
-                  <td className="py-1.5">
-                    <button
-                      type="button"
-                      className="underline-offset-2 hover:underline"
-                      onClick={() => irAMes(m.mes)}
-                    >
-                      {NOMBRES_MES[i]}
-                    </button>
-                  </td>
-                  <td className="py-1.5 text-right">{euros(m.objetivo)}</td>
-                  <td className="py-1.5 text-right text-tenue">
-                    {euros(m.objetivo - m.pendiente)}
-                  </td>
-                  <td className="py-1.5 text-right font-medium">{euros(m.pendiente)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Tarjeta>
+      <Grupo titulo={`Comparación con ${anio - 1}`}>
+        <FilaLista titulo={`Objetivo ${anio - 1}`} valor={eurosRedondos(anterior.objetivo)} />
+        <FilaLista titulo={`Objetivo ${anio}`} valor={eurosRedondos(actual.objetivo)} />
+        <FilaLista
+          titulo={<span className="font-semibold">Evolución</span>}
+          accion={
+            <span className={`cifras font-semibold ${diferencia >= 0 ? 'text-positivo' : ''}`}>
+              {diferencia >= 0 ? '+' : ''}
+              {eurosRedondos(diferencia)}
+            </span>
+          }
+        />
+        <FilaLista
+          titulo={<span className="text-acento">Ver {anio - 1}</span>}
+          onClick={() => setAnio(anio - 1)}
+          sinChevron
+        />
+      </Grupo>
+
+      <Grupo titulo="Mes a mes" pie="Toca un mes para abrirlo y ver su desglose por persona.">
+        {actual.meses.map((m, i) => {
+          const clave = mesKey(anio, i + 1)
+          return (
+            <FilaLista
+              key={m.mes}
+              titulo={
+                <span className={clave === hoy ? 'font-semibold text-acento' : undefined}>
+                  {NOMBRES_MES[i]}
+                </span>
+              }
+              detalle={`Objetivo ${euros(m.objetivo)} · aportado ${euros(m.objetivo - m.pendiente)}`}
+              valor={euros(m.pendiente)}
+              onClick={() => verMes(m.mes)}
+            />
+          )
+        })}
+      </Grupo>
     </div>
   )
 }

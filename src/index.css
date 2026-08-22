@@ -1,27 +1,54 @@
 @import 'tailwindcss';
 
+/*
+ * Sistema visual inspirado en iOS: fondo agrupado, tarjetas insertadas,
+ * separadores finos y un único azul de acento. Los colores son los "system
+ * colors" de Apple traducidos a OKLCH, con su variante para modo oscuro.
+ */
 @theme {
-  --color-fondo: oklch(0.98 0.005 260);
+  /* Fondo de la pantalla (systemGroupedBackground). */
+  --color-fondo: oklch(0.958 0.0035 286);
+  /* Tarjetas y filas sobre ese fondo. */
   --color-superficie: oklch(1 0 0);
-  --color-borde: oklch(0.9 0.008 260);
-  --color-tinta: oklch(0.25 0.02 260);
-  --color-tenue: oklch(0.55 0.02 260);
-  --color-acento: oklch(0.55 0.15 255);
-  --color-positivo: oklch(0.6 0.13 155);
-  --color-negativo: oklch(0.58 0.16 25);
+  /* Rellenos suaves: pista del control segmentado, celdas pulsadas. */
+  --color-relleno: oklch(0.925 0.004 286);
+  /* Hairline entre filas. */
+  --color-borde: oklch(0.855 0.004 286);
+
+  /* Texto principal, secundario y terciario (label / secondary / tertiary). */
+  --color-tinta: oklch(0.15 0.004 286);
+  --color-tenue: oklch(0.62 0.006 286);
+  --color-sutil: oklch(0.74 0.005 286);
+
+  /* systemBlue, systemGreen, systemRed. */
+  --color-acento: oklch(0.556 0.219 259);
+  --color-positivo: oklch(0.74 0.187 145);
+  --color-negativo: oklch(0.628 0.237 29);
+
+  /* Curvas continuas, más generosas que el radio por defecto de Tailwind. */
+  --radius-fila: 0.75rem;
+  --radius-tarjeta: 1rem;
+  --radius-hoja: 1.25rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  @theme {
-    --color-fondo: oklch(0.19 0.02 260);
-    --color-superficie: oklch(0.24 0.02 260);
-    --color-borde: oklch(0.32 0.02 260);
-    --color-tinta: oklch(0.96 0.005 260);
-    --color-tenue: oklch(0.72 0.02 260);
-    --color-acento: oklch(0.72 0.13 255);
-    --color-positivo: oklch(0.75 0.14 155);
-    --color-negativo: oklch(0.72 0.15 25);
-  }
+/*
+ * Tema oscuro. Se activa por el atributo `data-tema` del `<html>` (ver
+ * `lib/tema.ts`), no por la preferencia del sistema: el tema es una elección
+ * explícita de cada dispositivo, y el claro es el de partida.
+ */
+:root[data-tema='oscuro'] {
+  --color-fondo: oklch(0 0 0);
+  --color-superficie: oklch(0.213 0.0035 286);
+  --color-relleno: oklch(0.28 0.004 286);
+  --color-borde: oklch(0.33 0.004 286);
+
+  --color-tinta: oklch(1 0 0);
+  --color-tenue: oklch(0.68 0.008 286);
+  --color-sutil: oklch(0.52 0.006 286);
+
+  --color-acento: oklch(0.608 0.213 258);
+  --color-positivo: oklch(0.76 0.19 145);
+  --color-negativo: oklch(0.65 0.23 29);
 }
 
 html,
@@ -34,15 +61,59 @@ body {
   background-color: var(--color-fondo);
   color: var(--color-tinta);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* SF Pro en dispositivos Apple; el resto cae al tipo del sistema. */
   font-family:
-    system-ui,
     -apple-system,
+    BlinkMacSystemFont,
+    'SF Pro Text',
+    system-ui,
     'Segoe UI',
     Roboto,
     sans-serif;
+  /* Cuerpo de 17px, el tamaño de lectura de iOS. */
+  font-size: 17px;
+  line-height: 1.35;
 }
 
 /* Los importes se leen mejor alineados cuando todas las cifras miden igual. */
 .cifras {
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Títulos grandes de iOS: apretados y con mucho peso. */
+.titulo-grande {
+  font-size: 2.125rem;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+}
+
+.titulo-pantalla {
+  font-size: 1.375rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.018em;
+}
+
+/* Cifra protagonista (el «total por transferir»). */
+.cifra-heroe {
+  font-size: 2.75rem;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+/* Encabezado de grupo, como los títulos de sección de Ajustes. */
+.encabezado-grupo {
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+}
+
+/* Quita el resalte azul del tap en iOS: los estados los pintamos nosotros. */
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
 }

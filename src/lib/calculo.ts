@@ -187,6 +187,19 @@ export function aniosConDatos(datos: Datos): number[] {
     .sort((a, b) => b - a)
 }
 
+/**
+ * Meses de un año que ya tienen algún movimiento propio (gasto puntual o
+ * transferencia). Los recurrentes y el efectivo no cuentan: aplican a todo su
+ * rango y marcarían meses en los que nadie ha registrado nada todavía.
+ */
+export function mesesConMovimientos(datos: Datos, anio: number): Set<MesKey> {
+  const nodo = nodoAnio(datos, anio)
+  const meses = new Set<MesKey>()
+  for (const gasto of nodo.gastos) meses.add(mesDeFecha(gasto.fecha))
+  for (const transferencia of nodo.transferencias) meses.add(mesDeFecha(transferencia.fecha))
+  return meses
+}
+
 /** Gastos puntuales de un mes, para listarlos en la UI. */
 export function listaGastosDelMes(datos: Datos, mes: MesKey) {
   const { anio } = partesMes(mes)
@@ -208,6 +221,11 @@ export function listaRecurrentesDelMes(datos: Datos, mes: MesKey) {
   return datos.recurrentes
     .filter((r) => mesEnRango(mes, r.desde, r.hasta))
     .map((r) => ({ recurrente: r, importe: r.overrides[mes] ?? r.importe }))
+}
+
+/** Aportaciones en efectivo vigentes en un mes, para listarlas en la UI. */
+export function listaEfectivoDelMes(datos: Datos, mes: MesKey) {
+  return datos.efectivo.filter((e) => mesEnRango(mes, e.desde, e.hasta))
 }
 
 /** El año al que pertenece una fecha, como número. Útil al guardar. */

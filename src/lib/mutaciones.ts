@@ -56,11 +56,25 @@ export function renombrarPersona(datos: Datos, personaId: PersonaId, nombre: str
   }
 }
 
-export function cambiarEmailPersona(datos: Datos, personaId: PersonaId, email: string): Datos {
+function cambiarEmailPersona(datos: Datos, personaId: PersonaId, email: string): Datos {
   return {
     ...datos,
     personas: datos.personas.map((p) => (p.id === personaId ? { ...p, email } : p)),
   }
+}
+
+/**
+ * Vincula el email de la sesión que acaba de entrar a la primera persona sin
+ * email todavía (la plaza vacía que deja `datosIniciales` para la segunda
+ * persona). El email de cada persona ya no se escribe a mano en Ajustes: se
+ * asigna solo la primera vez que esa cuenta de Google abre la aplicación.
+ * No hace nada si el email ya pertenece a alguien, o si no queda plaza libre.
+ */
+export function vincularEmailPersona(datos: Datos, email: string): Datos {
+  if (!email || datos.personas.some((p) => p.email === email)) return datos
+  const libre = datos.personas.find((p) => !p.email)
+  if (!libre) return datos
+  return cambiarEmailPersona(datos, libre.id, email)
 }
 
 export type ModoCambioObjetivo = 'todoElAnio' | 'desdeEsteMes'
