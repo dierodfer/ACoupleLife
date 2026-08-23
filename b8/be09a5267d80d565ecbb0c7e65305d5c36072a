@@ -1,0 +1,47 @@
+src/App.tsx
+  s_dc6287509ed47f::t_210cc1647e6316 4-5,7,31-32,49,83-84
+src/componentes/Ajustes.tsx
+  s_dc6287509ed47f::t_94c8dd04e67703 2,7-8,19,21,62-66,69-70,73-83,87-88,90-111,113-116
+src/componentes/IndicadorPersona.tsx
+  s_dc6287509ed47f::t_bb0664ba8d84ff 1,6-8,10-11,15-17,19-21
+src/componentes/ModalEfectivo.tsx
+  s_dc6287509ed47f::t_53a1447735d993 1-79
+src/componentes/ModalGasto.tsx
+  s_dc6287509ed47f::t_20e4e080a3b0ba 2-3,5,9,13-24,32,35,41-45,47,51-52,61-62,66-67,72,78,81,87,141,152-154,157-158,164
+src/componentes/ModalTransferencia.tsx
+  s_dc6287509ed47f::t_5108693a7fc5aa 1-109
+src/componentes/PantallaObjetivos.tsx
+  s_dc6287509ed47f::t_eb57ba6a9887f8 4,14,62,81-83,95,99-100,102,122,124-126,128,132-145,180-190,195-266
+src/componentes/ResumenAnual.tsx
+  s_dc6287509ed47f::t_d1e49ea874f1a7 2-3,6,11-13,17,26-32,59-97,99-100,102-104,106-145,147-154,158-174,178-183
+src/componentes/ResumenMensual.tsx
+  s_dc6287509ed47f::t_6b199a99ded221 10-11,21,23,122,131-138,144-152,217-226,240,263-272,304,312,324-325,328-329
+src/componentes/SelectorMes.tsx
+  s_dc6287509ed47f::t_f3d7f18b6352db 11-13,35,47-48,50-63,65-67,69-83
+src/componentes/SelectorRangoMeses.tsx
+  s_dc6287509ed47f::t_a3a276d319d674 50-52
+src/componentes/ui.tsx
+  s_dc6287509ed47f::t_424698efc3a493 1,8,266-381,389-394,398,403,410,460,466-467,485-489,494
+src/lib/formato.ts
+  s_dc6287509ed47f::t_1318e340361002 29-65
+src/lib/personas.ts
+  s_dc6287509ed47f::t_1846c042a3a34a 1,10-19
+src/store/useStore.ts
+  s_dc6287509ed47f::t_9fc2c30aa348e0 6,58-60,93-96,149-150,363-376
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "b8be09a5267d80d565ecbb0c7e65305d5c36072a",
+  "prompts": {},
+  "sessions": {
+    "s_dc6287509ed47f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d411cf45-7069-40a3-924a-3b7c9062747c",
+        "model": "unknown"
+      },
+      "human_author": "Diego Rodriguez <dierodfer6@gmail.com>"
+    }
+  }
+}
