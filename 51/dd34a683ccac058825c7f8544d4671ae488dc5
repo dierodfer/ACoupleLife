@@ -1,0 +1,29 @@
+src/componentes/Iconos.tsx
+  s_dc6287509ed47f::t_a3c591f910d90d 114-121
+src/componentes/RejillaMeses.tsx
+  s_dc6287509ed47f::t_aa457daf3d7835 15-19,85,98,101-105,107-109
+src/componentes/ResumenMensual.tsx
+  s_dc6287509ed47f::t_7dbaf0f3bbc7e3 3,23-30,43,76-92,120-121,420-433,463,481,491-513,523
+src/componentes/SelectorMes.tsx
+  s_dc6287509ed47f::t_ea15ea72dbb009 2,74-77,87
+src/componentes/ui.tsx
+  s_dc6287509ed47f::t_63dfe014d797b0 244
+src/lib/calculo.ts
+  s_dc6287509ed47f::t_b6ceaa3de621c7 200-226
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "51dd34a683ccac058825c7f8544d4671ae488dc5",
+  "prompts": {},
+  "sessions": {
+    "s_dc6287509ed47f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d411cf45-7069-40a3-924a-3b7c9062747c",
+        "model": "unknown"
+      },
+      "human_author": "Diego Rodriguez <dierodfer6@gmail.com>"
+    }
+  }
+}
