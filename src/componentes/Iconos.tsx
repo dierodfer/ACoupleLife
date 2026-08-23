@@ -136,3 +136,63 @@ export function IconoDeshacer(props: Props) {
     </Svg>
   )
 }
+
+export function IconoNube(props: Props) {
+  return (
+    <Svg {...props}>
+      <path d="M7 19a4.5 4.5 0 0 1-.5-8.97 5.5 5.5 0 0 1 10.6-1.48A4.25 4.25 0 0 1 17.5 19Z" />
+    </Svg>
+  )
+}
+
+export function IconoCandado(props: Props) {
+  return (
+    <Svg {...props}>
+      <rect x="4.5" y="10" width="15" height="10.5" rx="3" />
+      <path d="M8 10V7.5a4 4 0 0 1 8 0V10" />
+    </Svg>
+  )
+}
+
+export function IconoPersonas(props: Props) {
+  return (
+    <Svg {...props}>
+      <circle cx="9" cy="8" r="3.25" />
+      <path d="M3 19.5a6 6 0 0 1 12 0" />
+      <path d="M16.5 5.2a3.25 3.25 0 0 1 0 5.6M18 14.2a6 6 0 0 1 3 5.3" />
+    </Svg>
+  )
+}
+
+/**
+ * Logo de Google Drive. Es la única marca ajena de la aplicación, así que no
+ * sigue la pauta de los demás iconos: colores fijos de Google (no
+ * `currentColor`) y relleno en vez de trazo, porque un logo no se reinterpreta.
+ */
+export function LogoGoogleDrive({ className }: Props) {
+  return (
+    <svg viewBox="0 0 87.3 78" aria-hidden className={className ?? 'h-6 w-6'}>
+      <path
+        d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z"
+        fill="#0066da"
+      />
+      <path
+        d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0-1.2 4.5h27.5z"
+        fill="#00ac47"
+      />
+      <path
+        d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z"
+        fill="#ea4335"
+      />
+      <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d" />
+      <path
+        d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z"
+        fill="#2684fc"
+      />
+      <path
+        d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z"
+        fill="#ffba00"
+      />
+    </svg>
+  )
+}
