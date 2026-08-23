@@ -47,7 +47,6 @@ export function App() {
       {pestana === 'ajustes' && <Ajustes datos={datos} />}
       {pestana === 'objetivos' && <PantallaObjetivos datos={datos} />}
 
-      {/* Barra de pestañas translúcida, anclada abajo como en iOS. */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-borde bg-superficie/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl pb-[env(safe-area-inset-bottom)]">
           {PESTANAS.map(({ clave, titulo, Icono }) => {
@@ -109,8 +108,7 @@ function BarraEstado() {
     )
   }
 
-  // Quién guardó por última vez. En un archivo a dos manos importa saber si lo
-  // último que hay es tuyo o de la otra persona.
+  // Quién guardó por última vez, si no has sido tú.
   const otraPersona =
     datos?.actualizadoPor && datos.actualizadoPor !== usuario?.email
       ? (datos.personas.find((p) => p.email === datos.actualizadoPor)?.nombre ??

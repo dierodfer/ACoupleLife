@@ -29,10 +29,6 @@ function redondea(n: number): number {
   return r === 0 ? 0 : r
 }
 
-/**
- * Objetivo de una persona para un mes concreto: la excepción del mes si existe,
- * si no la regla general del año.
- */
 export function objetivoDelMes(datos: Datos, personaId: PersonaId, mes: MesKey): number {
   const { anio, mes: m } = partesMes(mes)
   const objetivo = nodoAnio(datos, anio).objetivos[personaId]
@@ -41,10 +37,7 @@ export function objetivoDelMes(datos: Datos, personaId: PersonaId, mes: MesKey):
   return excepcion ?? objetivo.importeMensual
 }
 
-/**
- * Gastos puntuales del mes. El nodo de año se deriva de la fecha del gasto, no
- * del año que el usuario tenga abierto en pantalla.
- */
+/** El nodo de año se deriva de la fecha del gasto, no del año en pantalla. */
 export function gastosPuntualesDelMes(
   datos: Datos,
   personaId: PersonaId,
@@ -56,10 +49,6 @@ export function gastosPuntualesDelMes(
     .reduce((total, g) => total + g.importe, 0)
 }
 
-/**
- * Gastos recurrentes aplicables a un mes: los que caen dentro de su rango,
- * tomando el override del mes cuando existe (un override a 0 excluye ese mes).
- */
 export function gastosRecurrentesDelMes(
   datos: Datos,
   personaId: PersonaId,
@@ -70,14 +59,12 @@ export function gastosRecurrentesDelMes(
     .reduce((total, r) => total + (r.overrides[mes] ?? r.importe), 0)
 }
 
-/** Efectivo aportado el mes: la suma de las configuraciones vigentes ese mes. */
 export function efectivoDelMes(datos: Datos, personaId: PersonaId, mes: MesKey): number {
   return datos.efectivo
     .filter((e) => e.personaId === personaId && mesEnRango(mes, e.desde, e.hasta))
     .reduce((total, e) => total + e.importe, 0)
 }
 
-/** Transferencias registradas con fecha dentro del mes. */
 export function transferenciasDelMes(
   datos: Datos,
   personaId: PersonaId,
@@ -92,12 +79,9 @@ export function transferenciasDelMes(
 }
 
 /**
- * Desglose del mes para una persona.
+ * Desglose del mes para una persona:
  *
  *   pendiente = objetivo − gastos − efectivo − transferencias
- *
- * Un pendiente negativo significa que esa persona ha aportado de más este mes.
- * No se compensa con otros meses.
  */
 export function resumenPersona(
   datos: Datos,
@@ -200,7 +184,6 @@ export function mesesConMovimientos(datos: Datos, anio: number): Set<MesKey> {
   return meses
 }
 
-/** Gastos puntuales de un mes, para listarlos en la UI. */
 export function listaGastosDelMes(datos: Datos, mes: MesKey) {
   const { anio } = partesMes(mes)
   return nodoAnio(datos, anio)
@@ -208,7 +191,6 @@ export function listaGastosDelMes(datos: Datos, mes: MesKey) {
     .sort((a, b) => a.fecha.localeCompare(b.fecha))
 }
 
-/** Transferencias de un mes, para listarlas en la UI. */
 export function listaTransferenciasDelMes(datos: Datos, mes: MesKey) {
   const { anio } = partesMes(mes)
   return nodoAnio(datos, anio)
@@ -216,19 +198,17 @@ export function listaTransferenciasDelMes(datos: Datos, mes: MesKey) {
     .sort((a, b) => a.fecha.localeCompare(b.fecha))
 }
 
-/** Recurrentes aplicables a un mes, con el importe ya resuelto. */
+/** Recurrentes del mes, ya con el override aplicado si lo tienen. */
 export function listaRecurrentesDelMes(datos: Datos, mes: MesKey) {
   return datos.recurrentes
     .filter((r) => mesEnRango(mes, r.desde, r.hasta))
     .map((r) => ({ recurrente: r, importe: r.overrides[mes] ?? r.importe }))
 }
 
-/** Aportaciones en efectivo vigentes en un mes, para listarlas en la UI. */
 export function listaEfectivoDelMes(datos: Datos, mes: MesKey) {
   return datos.efectivo.filter((e) => mesEnRango(mes, e.desde, e.hasta))
 }
 
-/** El año al que pertenece una fecha, como número. Útil al guardar. */
 export function anioDe(fecha: string): number {
   return Number(anioDeFecha(fecha))
 }

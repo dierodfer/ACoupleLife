@@ -15,7 +15,6 @@ export function anioVacio(): Anio {
   return { objetivos: {}, gastos: [], transferencias: [] }
 }
 
-/** Archivo inicial que crea el primer usuario. */
 export function datosIniciales(propietario: Persona, hoy: Date = new Date()): Datos {
   const anio = hoy.getFullYear()
   return {
@@ -42,9 +41,8 @@ function texto(valor: unknown, porDefecto = ''): string {
 }
 
 /**
- * Normaliza lo que venga del archivo de Drive. El JSON es editable a mano y
- * puede venir de una versión anterior del esquema, así que nada se da por hecho:
- * cada campo se valida y se rellena con un valor por defecto seguro.
+ * Normaliza lo que venga del archivo de Drive: es editable a mano y puede venir
+ * de una versión anterior del esquema, así que nada se da por hecho.
  */
 export function normalizar(bruto: unknown): Datos {
   const d = (bruto ?? {}) as Record<string, unknown>

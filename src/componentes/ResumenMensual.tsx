@@ -37,7 +37,6 @@ export function ResumenMensual({ datos }: { datos: Datos }) {
     <div className="flex flex-col gap-6">
       <SelectorMes datos={datos} />
 
-      {/* La cifra protagonista, con el desglose conjunto justo debajo. */}
       <Tarjeta className="text-center">
         <p className="text-[13px] font-medium uppercase tracking-[0.06em] text-tenue">
           Total por transferir
@@ -417,8 +416,7 @@ function FormularioTransferencia({ datos }: { datos: Datos }) {
     }
 
     const personaId = personaActiva ?? datos.personas[0]?.id ?? ''
-    // Hoy, si se está viendo el mes en curso; si no, el día 1 del mes que se
-    // mira, para que la transferencia no acabe archivada fuera de ese mes.
+    // Hoy si es el mes en curso; si no, el día 1, para no archivarla fuera del mes visto.
     const fecha = mesDeFecha(hoyKey()) === mes ? hoyKey() : `${mes}-01`
     aplicar((d) => anadirTransferencia(d, { personaId, importe: cantidad, fecha }))
 
