@@ -24,7 +24,7 @@ export function datosIniciales(propietario: Persona, hoy: Date = new Date()): Da
     actualizadoPor: propietario.email,
     personas: [
       propietario,
-      { id: nuevoId('p'), nombre: 'Pareja', email: '' },
+      { id: nuevoId('p'), nombre: 'Persona 2', email: '' },
     ],
     recurrentes: [],
     efectivo: [],

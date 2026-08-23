@@ -13,7 +13,7 @@ La aplicación se centra exclusivamente en el seguimiento de las aportaciones y 
 - Los nombres de los dos miembros de la pareja son **editables** desde la aplicación (no están hardcodeados).
 - Cada persona queda identificada internamente por un `id` estable, independiente del nombre visible, para que renombrar no rompa el histórico.
 - Cada persona se asocia a una cuenta de Google (email) para la autenticación y el acceso al archivo compartido.
-- No existe ninguna categoría de gasto conjunto: **todo gasto pertenece a una de las dos personas**. En el resumen, "Pareja" no es más que el nombre editable de la segunda persona.
+- No existe ninguna categoría de gasto conjunto: **todo gasto pertenece a una de las dos personas**. Al crear el archivo, la segunda persona se llama por defecto "Persona 2" hasta que alguien le pone su nombre real.
 
 ---
 
@@ -115,10 +115,10 @@ Se descuentan automáticamente del objetivo del mes correspondiente. El mes y el
 
 La pantalla principal muestra de forma clara la situación del mes, por persona y en total:
 
-**Diego**
+**Persona 1**
 > Objetivo: 1.000 € · Gastos: 400 € · Efectivo: 100 € · Transferir: 500 €
 
-**Pareja**
+**Persona 2**
 > Objetivo: 1.000 € · Gastos: 350 € · Efectivo: 0 € · Transferir: 650 €
 
 **Total**
@@ -170,10 +170,10 @@ Es importante entender que esto es **detección, no bloqueo**: la API no ofrece 
 {
   "version": 1,
   "actualizadoEn": "2026-08-17T10:00:00Z",
-  "actualizadoPor": "diego@gmail.com",
+  "actualizadoPor": "persona1@gmail.com",
   "personas": [
-    { "id": "p1", "nombre": "Diego", "email": "diego@gmail.com" },
-    { "id": "p2", "nombre": "Ana", "email": "ana@gmail.com" }
+    { "id": "p1", "nombre": "Persona 1", "email": "persona1@gmail.com" },
+    { "id": "p2", "nombre": "Persona 2", "email": "persona2@gmail.com" }
   ],
   "recurrentes": [
     { "id": "r1", "personaId": "p1", "importe": 60, "concepto": "Internet",

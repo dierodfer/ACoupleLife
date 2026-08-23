@@ -7,7 +7,7 @@ import type { Usuario } from './auth'
  * que `drive.local.ts` ni siquiera usa.
  */
 
-const USUARIO_LOCAL: Usuario = { email: 'diego@local.test', nombre: 'Diego (local)' }
+const USUARIO_LOCAL: Usuario = { email: 'persona1@local.test', nombre: 'Persona 1 (local)' }
 
 export async function entrar(): Promise<Usuario> {
   return USUARIO_LOCAL
