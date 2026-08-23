@@ -107,6 +107,17 @@ export function resumenPersona(
   }
 }
 
+/**
+ * Sobre cuánto se mide el mes de una persona: su objetivo, salvo que haya
+ * aportado de más, en cuyo caso es lo aportado. Así el gráfico del mes se
+ * completa en vez de desbordarse, y el excedente sigue viéndose en el reparto
+ * de cada tramo. Con 0 no hay nada que repartir: ni objetivo ni aportación.
+ */
+export function baseDelMes(resumen: ResumenPersona): number {
+  const aportado = resumen.gastos + resumen.efectivo + resumen.transferencias
+  return redondea(Math.max(resumen.objetivo, aportado))
+}
+
 /** Desglose del mes para las dos personas más el total de la pareja. */
 export function resumenMes(datos: Datos, mes: MesKey): ResumenMes {
   const porPersona = datos.personas.map((p) => resumenPersona(datos, p.id, mes))

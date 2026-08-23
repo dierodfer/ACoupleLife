@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  baseDelMes,
   efectivoDelMes,
   gastosRecurrentesDelMes,
   objetivoDelMes,
@@ -218,6 +219,26 @@ describe('resumen del año', () => {
     const resumen = resumenAnio(datosBase(), 2019)
     expect(resumen.objetivo).toBe(0)
     expect(resumen.pendiente).toBe(0)
+  })
+})
+
+describe('base del mes', () => {
+  it('es el objetivo mientras no se aporte de más', () => {
+    expect(baseDelMes(resumenPersona(datosBase(), 'p1', '2026-08'))).toBe(1000)
+  })
+
+  it('pasa a ser lo aportado cuando supera al objetivo', () => {
+    const datos = datosBase()
+    datos.anios['2026']!.transferencias = [
+      { id: 't1', personaId: 'p1', importe: 900, fecha: '2026-08-20' },
+    ]
+
+    // 400 de gastos + 100 de efectivo + 900 transferidos = 1.400 sobre 1.000.
+    expect(baseDelMes(resumenPersona(datos, 'p1', '2026-08'))).toBe(1400)
+  })
+
+  it('es cero sin objetivo ni aportaciones', () => {
+    expect(baseDelMes(resumenPersona(datosBase(), 'p2', '2019-05'))).toBe(0)
   })
 })
 

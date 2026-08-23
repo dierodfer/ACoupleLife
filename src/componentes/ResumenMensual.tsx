@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  liquidacionDelMes,
+  baseDelMes,
   listaEfectivoDelMes,
   listaGastosDelMes,
   listaRecurrentesDelMes,
@@ -16,8 +16,9 @@ import {
   eliminarTransferencia,
   fijarOverrideRecurrente,
 } from '../lib/mutaciones'
-import type { Datos } from '../lib/tipos'
+import type { Datos, ResumenPersona } from '../lib/tipos'
 import { useStore } from '../store/useStore'
+import { Donut, PuntoSerie } from './Donut'
 import { IconoCerrar, IconoCheck, IconoDeshacer, IconoLapiz, IconoMas, IconoRepetir } from './Iconos'
 import { SelectorMes } from './SelectorMes'
 import { Boton, EntradaEuros, Fila, FilaLista, Grupo, Tarjeta } from './ui'
@@ -28,9 +29,7 @@ import { Boton, EntradaEuros, Fila, FilaLista, Grupo, Tarjeta } from './ui'
  */
 export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
-  const abrirPestana = useStore((s) => s.abrirPestana)
   const resumen = resumenMes(datos, mes)
-  const liquidacion = liquidacionDelMes(datos, mes)
 
   return (
     <div className="flex flex-col gap-6">
@@ -63,56 +62,114 @@ export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
         </div>
       </Tarjeta>
 
-      {resumen.porPersona.map((persona) => {
-        const alDia = liquidacion.find((l) => l.personaId === persona.personaId)?.alDia ?? false
-        return (
-        <Grupo
-          key={persona.personaId}
-          titulo={
-            <span className="flex items-center gap-1.5">
-              {nombrePersona(datos, persona.personaId)}
-              {alDia && (
-                <span className="inline-flex items-center gap-0.5 text-positivo">
-                  <IconoCheck className="h-3.5 w-3.5" />
-                  al día
-                </span>
-              )}
-            </span>
-          }
-        >
-          <FilaLista
-            titulo="Objetivo"
-            valor={euros(persona.objetivo)}
-            onClick={() => abrirPestana('objetivos')}
-          />
-          <FilaLista
-            titulo="Gastos"
-            detalle={
-              persona.gastosRecurrentes > 0 && persona.gastosPuntuales > 0
-                ? `${euros(persona.gastosPuntuales)} puntuales · ${euros(persona.gastosRecurrentes)} recurrentes`
-                : undefined
-            }
-            valor={`− ${euros(persona.gastos)}`}
-          />
-          <FilaLista titulo="Efectivo" valor={`− ${euros(persona.efectivo)}`} />
-          <FilaLista titulo="Transferido" valor={`− ${euros(persona.transferencias)}`} />
-          <FilaLista
-            titulo={<span className="font-semibold">Por transferir</span>}
-            accion={
-              <span
-                className={`cifras font-semibold ${persona.pendiente > 0 ? '' : 'text-positivo'}`}
-              >
-                {euros(persona.pendiente)}
-              </span>
-            }
-          />
-        </Grupo>
-        )
-      })}
+      {resumen.porPersona.map((persona) => (
+        <DesglosePersona key={persona.personaId} datos={datos} persona={persona} />
+      ))}
 
       <Movimientos datos={datos} />
     </div>
   )
+}
+
+/**
+ * Cómo se reparte el anillo. El orden es el mismo que el de la leyenda y el del
+ * desglose de la pareja de arriba, para que los tres se lean igual. Las clases
+ * van escritas enteras porque Tailwind las busca literalmente en el código: una
+ * compuesta al vuelo (`stroke-${...}`) no llegaría a generarse.
+ */
+const TRAMOS = [
+  { clave: 'gastos', etiqueta: 'Gastos', trazo: 'stroke-serie-gastos', punto: 'bg-serie-gastos' },
+  {
+    clave: 'efectivo',
+    etiqueta: 'Efectivo',
+    trazo: 'stroke-serie-efectivo',
+    punto: 'bg-serie-efectivo',
+  },
+  {
+    clave: 'transferencias',
+    etiqueta: 'Transferido',
+    trazo: 'stroke-serie-transferido',
+    punto: 'bg-serie-transferido',
+  },
+] as const
+
+/**
+ * El mes de una persona en un anillo: cuánto de su objetivo cubre ya cada tipo
+ * de aportación y cuánto queda por transferir, que es el hueco sin pintar.
+ */
+function DesglosePersona({
+  datos,
+  persona,
+}: Readonly<{ datos: Datos; persona: ResumenPersona }>) {
+  const abrirPestana = useStore((s) => s.abrirPestana)
+  const base = baseDelMes(persona)
+
+  const tramos = TRAMOS.map((t) => ({ clave: t.clave, valor: persona[t.clave], clase: t.trazo }))
+
+  return (
+    <Grupo titulo={nombrePersona(datos, persona.personaId)}>
+      <div className="flex flex-col items-center gap-4 px-4 pb-1 pt-4">
+        <Donut tramos={tramos} base={base} etiqueta={etiquetaDonut(datos, persona)}>
+          <CentroDonut base={base} pendiente={persona.pendiente} />
+        </Donut>
+
+        <div className="w-full">
+          {TRAMOS.map((t) => (
+            <Fila
+              key={t.clave}
+              concepto={
+                <span className="flex items-center gap-2">
+                  <PuntoSerie clase={t.punto} />
+                  {t.etiqueta}
+                  {t.clave === 'gastos' && persona.gastosPuntuales > 0 && persona.gastosRecurrentes > 0 && (
+                    <span className="truncate text-[13px] text-tenue">
+                      {euros(persona.gastosPuntuales)} + {euros(persona.gastosRecurrentes)} fijos
+                    </span>
+                  )}
+                </span>
+              }
+              importe={euros(persona[t.clave])}
+              tono={persona[t.clave] > 0 ? 'normal' : 'tenue'}
+            />
+          ))}
+        </div>
+      </div>
+
+      <FilaLista
+        titulo="Objetivo"
+        valor={euros(persona.objetivo)}
+        onClick={() => abrirPestana('objetivos')}
+      />
+    </Grupo>
+  )
+}
+
+/** El dato que resume el anillo, en su hueco central. */
+function CentroDonut({ base, pendiente }: Readonly<{ base: number; pendiente: number }>) {
+  if (base === 0) return <span className="text-[15px] text-tenue">Sin objetivo</span>
+
+  if (pendiente <= 0) {
+    return (
+      <>
+        <IconoCheck className="h-7 w-7 text-positivo" />
+        <span className="text-[15px] font-medium text-positivo">Al día</span>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <span className="cifras text-[19px] font-semibold leading-none">{euros(pendiente)}</span>
+      <span className="text-[12px] leading-tight text-tenue">por transferir</span>
+    </>
+  )
+}
+
+/** El mismo contenido del anillo, en una frase, para lectores de pantalla. */
+function etiquetaDonut(datos: Datos, persona: ResumenPersona): string {
+  const partes = TRAMOS.map((t) => `${t.etiqueta} ${euros(persona[t.clave])}`).join(', ')
+  const objetivo = `objetivo ${euros(persona.objetivo)}`
+  return `${nombrePersona(datos, persona.personaId)}: ${partes}, de un ${objetivo}.`
 }
 
 function Movimientos({ datos }: Readonly<{ datos: Datos }>) {
