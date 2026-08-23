@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { aniosConDatos, mesesConMovimientos } from '../lib/calculo'
+import { aniosConDatos, liquidacionDelMes } from '../lib/calculo'
 import { etiquetaMes, mesActual, partesMes, sumaMeses } from '../lib/fechas'
 import type { Datos } from '../lib/tipos'
 import { useStore } from '../store/useStore'
@@ -20,7 +20,6 @@ export function SelectorMes({ datos }: Readonly<{ datos: Datos }>) {
   const [anioVisible, setAnioVisible] = useState(partesMes(mes).anio)
 
   const hoy = mesActual()
-  const conDatos = mesesConMovimientos(datos, anioVisible)
   const anios = aniosConDatos(datos)
 
   const alternar = () => {
@@ -72,7 +71,10 @@ export function SelectorMes({ datos }: Readonly<{ datos: Datos }>) {
               estadoDe={(clave) => ({
                 seleccionado: clave === mes,
                 hoy: clave === hoy,
-                marcado: conDatos.has(clave),
+                // Solo los meses en los que alguien tenía algo que aportar.
+                marcas: liquidacionDelMes(datos, clave)
+                  .filter((l) => l.conObjetivo)
+                  .map((l) => ({ id: l.personaId, alDia: l.alDia })),
               })}
               onTocarMes={(clave) => {
                 irAMes(clave)
@@ -82,7 +84,7 @@ export function SelectorMes({ datos }: Readonly<{ datos: Datos }>) {
           </div>
 
           <p className="mt-3 text-center text-[13px] text-tenue">
-            El punto marca los meses con movimientos.
+            Un punto por persona: relleno si ya ha transferido todo lo suyo.
           </p>
 
           {anios.length > 1 && (

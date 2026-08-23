@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  liquidacionDelMes,
   listaEfectivoDelMes,
   listaGastosDelMes,
   listaRecurrentesDelMes,
@@ -19,7 +20,14 @@ import {
 } from '../lib/mutaciones'
 import type { Datos } from '../lib/tipos'
 import { useStore } from '../store/useStore'
-import { IconoCerrar, IconoDeshacer, IconoLapiz, IconoMas, IconoRepetir } from './Iconos'
+import {
+  IconoCerrar,
+  IconoCheck,
+  IconoDeshacer,
+  IconoLapiz,
+  IconoMas,
+  IconoRepetir,
+} from './Iconos'
 import { SelectorMes } from './SelectorMes'
 import { SelectorRangoMeses } from './SelectorRangoMeses'
 import { Boton, Campo, Entrada, Fila, FilaLista, Grupo, Tarjeta, Vacio } from './ui'
@@ -32,6 +40,7 @@ export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
   const abrirPestana = useStore((s) => s.abrirPestana)
   const resumen = resumenMes(datos, mes)
+  const liquidacion = liquidacionDelMes(datos, mes)
 
   return (
     <div className="flex flex-col gap-6">
@@ -64,8 +73,23 @@ export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
         </div>
       </Tarjeta>
 
-      {resumen.porPersona.map((persona) => (
-        <Grupo key={persona.personaId} titulo={nombrePersona(datos, persona.personaId)}>
+      {resumen.porPersona.map((persona) => {
+        const alDia = liquidacion.find((l) => l.personaId === persona.personaId)?.alDia ?? false
+        return (
+        <Grupo
+          key={persona.personaId}
+          titulo={
+            <span className="flex items-center gap-1.5">
+              {nombrePersona(datos, persona.personaId)}
+              {alDia && (
+                <span className="inline-flex items-center gap-0.5 text-positivo">
+                  <IconoCheck className="h-3.5 w-3.5" />
+                  al día
+                </span>
+              )}
+            </span>
+          }
+        >
           <FilaLista
             titulo="Objetivo"
             valor={euros(persona.objetivo)}
@@ -93,7 +117,8 @@ export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
             }
           />
         </Grupo>
-      ))}
+        )
+      })}
 
       <Movimientos datos={datos} />
     </div>
@@ -392,6 +417,20 @@ function FormularioTransferencia({ datos }: Readonly<{ datos: Datos }>) {
   const [abierto, setAbierto] = useState(false)
   const [importe, setImporte] = useState('')
   const [errorImporte, setErrorImporte] = useState(false)
+  const [completa, setCompleta] = useState(false)
+
+  const personaId = personaActiva ?? datos.personas[0]?.id ?? ''
+  const pendiente =
+    liquidacionDelMes(datos, mes).find((l) => l.personaId === personaId)?.pendiente ?? 0
+
+  const alternarCompleta = () => {
+    const marcar = !completa
+    setCompleta(marcar)
+    // Marcarla rellena el importe con lo que falta; desmarcarla lo devuelve
+    // a manos del usuario en vez de dejar la cifra impuesta.
+    setImporte(marcar ? String(pendiente) : '')
+    setErrorImporte(false)
+  }
 
   if (!abierto) {
     return (
@@ -415,13 +454,13 @@ function FormularioTransferencia({ datos }: Readonly<{ datos: Datos }>) {
       return
     }
 
-    const personaId = personaActiva ?? datos.personas[0]?.id ?? ''
     // Hoy si es el mes en curso; si no, el día 1, para no archivarla fuera del mes visto.
     const fecha = mesDeFecha(hoyKey()) === mes ? hoyKey() : `${mes}-01`
     aplicar((d) => anadirTransferencia(d, { personaId, importe: cantidad, fecha }))
 
     setImporte('')
     setErrorImporte(false)
+    setCompleta(false)
     setAbierto(false)
   }
 
@@ -439,6 +478,7 @@ function FormularioTransferencia({ datos }: Readonly<{ datos: Datos }>) {
           inputMode="decimal"
           value={importe}
           error={errorImporte}
+          disabled={completa}
           autoFocus
           placeholder="0,00"
           onChange={(e) => {
@@ -447,6 +487,29 @@ function FormularioTransferencia({ datos }: Readonly<{ datos: Datos }>) {
           }}
         />
       </Campo>
+
+      {pendiente > 0 && (
+        <button
+          type="button"
+          aria-pressed={completa}
+          onClick={alternarCompleta}
+          className="flex items-center gap-2.5 text-left text-[15px] active:opacity-60"
+        >
+          <span
+            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition ${
+              completa ? 'border-acento bg-acento text-white' : 'border-sutil'
+            }`}
+          >
+            {completa && <IconoCheck className="h-4 w-4" />}
+          </span>
+          <span>
+            Marcar como completa
+            <span className="block text-[13px] text-tenue">
+              Transfiere los {euros(pendiente)} que faltan y queda al día.
+            </span>
+          </span>
+        </button>
+      )}
 
       <div className="flex gap-2">
         <Boton type="submit" variante="principal" className="flex-1">
@@ -457,6 +520,7 @@ function FormularioTransferencia({ datos }: Readonly<{ datos: Datos }>) {
           onClick={() => {
             setAbierto(false)
             setErrorImporte(false)
+            setCompleta(false)
           }}
         >
           Cancelar

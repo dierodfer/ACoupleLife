@@ -241,7 +241,7 @@ export function ControlSegmentado<T extends string>({
 }
 
 const ESTILO_ENTRADA =
-  'w-full rounded-fila border border-borde bg-superficie px-3.5 py-2.5 text-[17px] text-tinta outline-none transition focus:border-acento'
+  'w-full rounded-fila border border-borde bg-superficie px-3.5 py-2.5 text-[17px] text-tinta outline-none transition focus:border-acento disabled:opacity-50'
 
 export function Entrada({
   className,
