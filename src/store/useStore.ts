@@ -3,7 +3,7 @@ import { mesActual } from '../lib/fechas'
 import { datosIniciales, nuevoId } from '../lib/esquema'
 import { sellar, vincularEmailPersona } from '../lib/mutaciones'
 import { aplicarTema, temaGuardado, type Tema } from '../lib/tema'
-import type { Datos, MesKey, PersonaId } from '../lib/tipos'
+import type { Datos, MesKey } from '../lib/tipos'
 import type { Usuario } from '../services/auth'
 import { auth, drive } from '../services/backend'
 
@@ -55,13 +55,9 @@ interface Estado {
    * modal, montado una sola vez en `App.tsx`.
    */
   modalGasto: { abierto: boolean; editandoId: string | null; tipoInicial: 'puntual' | 'recurrente' }
-  /**
-   * Persona preseleccionada al dar de alta un gasto, transferencia o efectivo,
-   * para no tener que cambiar el desplegable cada vez. Solo afecta al valor
-   * inicial de altas nuevas; editar algo existente sigue respetando a quién
-   * pertenece ya.
-   */
-  personaActiva: PersonaId | null
+  /** Igual que `modalGasto`: solo alta, así que basta con saber si está abierto. */
+  modalTransferencia: boolean
+  modalEfectivo: boolean
   /** Claro u oscuro. Preferencia del dispositivo, no del archivo compartido. */
   tema: Tema
   sinGuardar: boolean
@@ -94,7 +90,10 @@ interface Estado {
   /** Abre el modal de gasto. Sin opciones: alta de gasto puntual. */
   abrirModalGasto: (opciones?: { editandoId?: string; tipoInicial?: 'puntual' | 'recurrente' }) => void
   cerrarModalGasto: () => void
-  setPersonaActiva: (personaId: PersonaId) => void
+  abrirModalTransferencia: () => void
+  cerrarModalTransferencia: () => void
+  abrirModalEfectivo: () => void
+  cerrarModalEfectivo: () => void
   setTema: (tema: Tema) => void
   limpiarError: () => void
 }
@@ -147,7 +146,8 @@ export const useStore = create<Estado>((set, get) => {
     pestana: 'mes',
     historial: [],
     modalGasto: MODAL_GASTO_CERRADO,
-    personaActiva: null,
+    modalTransferencia: false,
+    modalEfectivo: false,
     tema: temaGuardado(),
     sinGuardar: false,
     fallosSeguidos: 0,
@@ -360,8 +360,20 @@ export const useStore = create<Estado>((set, get) => {
       set({ modalGasto: MODAL_GASTO_CERRADO })
     },
 
-    setPersonaActiva(personaId) {
-      set({ personaActiva: personaId })
+    abrirModalTransferencia() {
+      set({ modalTransferencia: true })
+    },
+
+    cerrarModalTransferencia() {
+      set({ modalTransferencia: false })
+    },
+
+    abrirModalEfectivo() {
+      set({ modalEfectivo: true })
+    },
+
+    cerrarModalEfectivo() {
+      set({ modalEfectivo: false })
     },
 
     setTema(tema) {

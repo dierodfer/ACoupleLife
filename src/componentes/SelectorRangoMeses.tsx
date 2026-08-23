@@ -47,7 +47,9 @@ export function SelectorRangoMeses({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[13px] font-medium uppercase tracking-[0.05em] text-tenue">Rango</span>
+      <span className="text-[13px] font-medium uppercase tracking-[0.05em] text-tenue">
+        Rango<span className="text-negativo">*</span>
+      </span>
 
       <button
         type="button"

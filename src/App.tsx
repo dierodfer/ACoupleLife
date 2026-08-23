@@ -1,12 +1,14 @@
 import { useEffect } from 'react'
 import { Ajustes } from './componentes/Ajustes'
 import { IconoAjustes, IconoAnio, IconoMes, IconoRecargar } from './componentes/Iconos'
+import { IndicadorPersona } from './componentes/IndicadorPersona'
+import { ModalEfectivo } from './componentes/ModalEfectivo'
 import { ModalGasto } from './componentes/ModalGasto'
+import { ModalTransferencia } from './componentes/ModalTransferencia'
 import { PantallaAcceso } from './componentes/PantallaAcceso'
 import { PantallaObjetivos } from './componentes/PantallaObjetivos'
 import { ResumenAnual } from './componentes/ResumenAnual'
 import { ResumenMensual } from './componentes/ResumenMensual'
-import { SelectorPersonaActiva } from './componentes/SelectorPersonaActiva'
 import { Aviso, Boton } from './componentes/ui'
 import { haceCuanto } from './lib/formato'
 import type { Datos } from './lib/tipos'
@@ -26,6 +28,8 @@ export function App() {
   const pestana = useStore((s) => s.pestana)
   const setPestana = useStore((s) => s.irAPestana)
   const modalGasto = useStore((s) => s.modalGasto)
+  const modalTransferencia = useStore((s) => s.modalTransferencia)
+  const modalEfectivo = useStore((s) => s.modalEfectivo)
 
   useEffect(() => {
     void arrancar()
@@ -42,7 +46,7 @@ export function App() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-4 px-4 pb-28 pt-3">
       <BarraEstado />
-      <SelectorPersonaActiva datos={datos} />
+      <IndicadorPersona datos={datos} />
 
       {pestana === 'mes' && <ResumenMensual datos={datos} />}
       {pestana === 'anio' && <ResumenAnual datos={datos} />}
@@ -76,6 +80,8 @@ export function App() {
         key={`${modalGasto.abierto}|${modalGasto.editandoId ?? 'nuevo'}`}
         datos={datos}
       />
+      <ModalTransferencia key={String(modalTransferencia)} datos={datos} />
+      <ModalEfectivo key={String(modalEfectivo)} datos={datos} />
     </div>
   )
 }
