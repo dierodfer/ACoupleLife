@@ -10,6 +10,12 @@ import { auth, drive } from '../services/backend'
 const CLAVE_ARCHIVO = 'acouplelife.fileId'
 const RETARDO_AUTOGUARDADO = 2000
 
+/**
+ * Esperas entre reintentos cuando Drive falla por red. Crecen para no machacar
+ * una conexión que ya va mal; a partir de la última se repite esa.
+ */
+export const ESPERAS_REINTENTO = [5000, 15000, 45000]
+
 export type EstadoApp =
   | 'arrancando'
   | 'sinSesion'
@@ -59,6 +65,8 @@ interface Estado {
   /** Claro u oscuro. Preferencia del dispositivo, no del archivo compartido. */
   tema: Tema
   sinGuardar: boolean
+  /** Fallos de red seguidos al guardar. Marca el escalón de espera del reintento. */
+  fallosSeguidos: number
   error: string | null
 
   arrancar: () => Promise<void>
@@ -104,11 +112,29 @@ function mensaje(error: unknown): string {
 }
 
 export const useStore = create<Estado>((set, get) => {
-  function programarAutoguardado() {
+  function programarGuardado(espera: number) {
     if (temporizador) clearTimeout(temporizador)
     temporizador = setTimeout(() => {
+      temporizador = null
       void get().guardar()
-    }, RETARDO_AUTOGUARDADO)
+    }, espera)
+  }
+
+  function cancelarGuardado() {
+    if (temporizador) clearTimeout(temporizador)
+    temporizador = null
+  }
+
+  function programarAutoguardado() {
+    programarGuardado(RETARDO_AUTOGUARDADO)
+  }
+
+  /** Espera creciente tras un fallo de red, hasta el último escalón. */
+  function programarReintento() {
+    const fallos = get().fallosSeguidos
+    const i = Math.min(fallos, ESPERAS_REINTENTO.length - 1)
+    set({ fallosSeguidos: fallos + 1 })
+    programarGuardado(ESPERAS_REINTENTO[i] ?? RETARDO_AUTOGUARDADO)
   }
 
   return {
@@ -124,6 +150,7 @@ export const useStore = create<Estado>((set, get) => {
     personaActiva: null,
     tema: temaGuardado(),
     sinGuardar: false,
+    fallosSeguidos: 0,
     error: null,
 
     async arrancar() {
@@ -151,6 +178,7 @@ export const useStore = create<Estado>((set, get) => {
     },
 
     salir() {
+      cancelarGuardado()
       auth.salir()
       localStorage.removeItem(CLAVE_ARCHIVO)
       set({
@@ -160,6 +188,7 @@ export const useStore = create<Estado>((set, get) => {
         version: null,
         datos: null,
         sinGuardar: false,
+        fallosSeguidos: 0,
       })
     },
 
@@ -208,6 +237,10 @@ export const useStore = create<Estado>((set, get) => {
         return
       }
 
+      // Lo que venga de Drive sustituye a lo local: un guardado pendiente ya no
+      // aplica, y en «descartar mis cambios» volvería a subir lo descartado.
+      cancelarGuardado()
+
       try {
         set({ estado: 'cargando', error: null })
         const { datos, archivo } = await drive.descargar(fileId)
@@ -232,24 +265,42 @@ export const useStore = create<Estado>((set, get) => {
 
     async guardar() {
       const { datos, fileId, version, usuario, estado } = get()
-      if (!datos || !fileId || !version || estado === 'guardando') return
+      if (!datos || !fileId || !version) return
 
-      if (temporizador) {
-        clearTimeout(temporizador)
-        temporizador = null
+      // Ya hay una subida en marcha. Volver a intentarlo ahora escribiría con
+      // una `version` que está a punto de quedar obsoleta, así que se reprograma:
+      // salir sin más dejaría este cambio sin guardar hasta la siguiente edición.
+      if (estado === 'guardando') {
+        programarAutoguardado()
+        return
       }
+
+      cancelarGuardado()
 
       const sellados = sellar(datos, usuario?.email ?? '')
       try {
         set({ estado: 'guardando', error: null, datos: sellados })
         const archivo = await drive.guardar(fileId, sellados, version)
-        set({ estado: 'listo', version: archivo.version, sinGuardar: false })
+
+        // Si se editó durante la subida, lo que hay en memoria ya no es lo que
+        // se subió: siguen quedando cambios pendientes, por mucho que Drive
+        // haya respondido que sí.
+        const pendientes = get().datos !== sellados
+        set({
+          estado: 'listo',
+          version: archivo.version,
+          sinGuardar: pendientes,
+          fallosSeguidos: 0,
+        })
+        if (pendientes) programarAutoguardado()
       } catch (error) {
+        // Un conflicto no se reintenta solo: lo resuelve la persona.
         if (error instanceof drive.ConflictoDrive) {
           set({ estado: 'conflicto', error: error.message })
           return
         }
         set({ estado: 'listo', error: mensaje(error) })
+        programarReintento()
       }
     },
 
