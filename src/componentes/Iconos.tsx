@@ -4,9 +4,9 @@
  * fuente de iconos entera por media docena de glifos.
  */
 
-type Props = { className?: string }
+type Props = Readonly<{ className?: string }>
 
-function Svg({ className, children }: Props & { children: React.ReactNode }) {
+function Svg({ className, children }: Props & Readonly<{ children: React.ReactNode }>) {
   return (
     <svg
       viewBox="0 0 24 24"

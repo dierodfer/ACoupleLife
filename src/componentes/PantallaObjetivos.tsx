@@ -22,7 +22,7 @@ import {
  * y las excepciones que la rompen. El mes a mes se recorre persona a persona
  * porque en un móvil no caben dos columnas de importes editables.
  */
-export function PantallaObjetivos({ datos }: { datos: Datos }) {
+export function PantallaObjetivos({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
   const volver = useStore((s) => s.volver)
   const destino = useStore((s) => s.historial[s.historial.length - 1] ?? 'mes')
@@ -55,7 +55,7 @@ export function PantallaObjetivos({ datos }: { datos: Datos }) {
 }
 
 /** La regla que aplica a los doce meses del año. */
-function ReglaGeneral({ datos, anio }: { datos: Datos; anio: number }) {
+function ReglaGeneral({ datos, anio }: Readonly<{ datos: Datos; anio: number }>) {
   return (
     <Grupo
       titulo="Regla general"
@@ -85,11 +85,11 @@ function ObjetivoDePersona({
   persona,
   anio,
   mensual,
-}: {
+}: Readonly<{
   persona: Persona
   anio: number
   mensual: number
-}) {
+}>) {
   const aplicar = useStore((s) => s.aplicar)
   const [valor, setValor] = useState(String(mensual))
 
@@ -151,7 +151,7 @@ function ObjetivoDePersona({
  * Los doce meses de una persona. Cada fila muestra el objetivo efectivo; al
  * cambiarlo se crea una excepción, y el botón de deshacer la retira.
  */
-function MesAMes({ datos, anio }: { datos: Datos; anio: number }) {
+function MesAMes({ datos, anio }: Readonly<{ datos: Datos; anio: number }>) {
   const aplicar = useStore((s) => s.aplicar)
   const verMes = useStore((s) => s.verMes)
   const [personaId, setPersonaId] = useState<PersonaId>(datos.personas[0]?.id ?? '')

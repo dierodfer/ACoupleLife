@@ -13,7 +13,7 @@ import { Boton } from './ui'
  * (relleno), el mes en el que estamos de verdad (acento), y los que ya tienen
  * movimientos (punto).
  */
-export function SelectorMes({ datos }: { datos: Datos }) {
+export function SelectorMes({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
   const irAMes = useStore((s) => s.irAMes)
   const [abierto, setAbierto] = useState(false)

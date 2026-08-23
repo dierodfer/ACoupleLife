@@ -9,24 +9,24 @@ import type { Usuario } from './auth'
 
 const USUARIO_LOCAL: Usuario = { email: 'persona1@local.test', nombre: 'Persona 1 (local)' }
 
-export async function entrar(): Promise<Usuario> {
-  return USUARIO_LOCAL
+export function entrar(): Promise<Usuario> {
+  return Promise.resolve(USUARIO_LOCAL)
 }
 
-export async function tokenValido(): Promise<string> {
-  return 'token-local'
+export function tokenValido(): Promise<string> {
+  return Promise.resolve('token-local')
 }
 
 export function haySesion(): boolean {
   return true
 }
 
-export async function reanudarSesion(): Promise<Usuario | null> {
-  return USUARIO_LOCAL
+export function reanudarSesion(): Promise<Usuario | null> {
+  return Promise.resolve(USUARIO_LOCAL)
 }
 
-export async function datosUsuario(): Promise<Usuario> {
-  return USUARIO_LOCAL
+export function datosUsuario(): Promise<Usuario> {
+  return Promise.resolve(USUARIO_LOCAL)
 }
 
 export function salir(): void {

@@ -326,9 +326,7 @@ export const useStore = create<Estado>((set, get) => {
 
 export function vigilarCambiosSinGuardar() {
   window.addEventListener('beforeunload', (evento) => {
-    if (useStore.getState().sinGuardar) {
-      evento.preventDefault()
-      evento.returnValue = ''
-    }
+    // `preventDefault()` basta desde hace años; `returnValue` está obsoleto.
+    if (useStore.getState().sinGuardar) evento.preventDefault()
   })
 }

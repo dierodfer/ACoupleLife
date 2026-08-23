@@ -20,7 +20,13 @@ import {
   Vacio,
 } from './ui'
 
-export function Ajustes({ datos }: { datos: Datos }) {
+/** `2 meses ajustados`, o `undefined` si no hay ninguno (para no pintar el detalle). */
+function pluralMeses(cuantos: number, singular: string, plural: string): string | undefined {
+  if (cuantos === 0) return undefined
+  return `${cuantos} ${cuantos === 1 ? singular : plural}`
+}
+
+export function Ajustes({ datos }: Readonly<{ datos: Datos }>) {
   const volver = useStore((s) => s.volver)
   const destino = useStore((s) => s.historial[s.historial.length - 1] ?? 'mes')
 
@@ -45,7 +51,7 @@ export function Ajustes({ datos }: { datos: Datos }) {
  * El objetivo tiene pantalla propia: es la configuración más densa de la app
  * (regla anual más excepciones de cada mes) y no cabe como una tarjeta más.
  */
-function AccesoObjetivos({ datos }: { datos: Datos }) {
+function AccesoObjetivos({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
   const abrirPestana = useStore((s) => s.abrirPestana)
   const { anio } = partesMes(mes)
@@ -59,11 +65,7 @@ function AccesoObjetivos({ datos }: { datos: Datos }) {
           <FilaLista
             key={persona.id}
             titulo={persona.nombre}
-            detalle={
-              excepciones > 0
-                ? `${excepciones} ${excepciones === 1 ? 'mes con excepción' : 'meses con excepción'}`
-                : undefined
-            }
+            detalle={pluralMeses(excepciones, 'mes con excepción', 'meses con excepción')}
             valor={`${euros(objetivo?.importeMensual ?? 0)} / mes`}
             onClick={() => abrirPestana('objetivos')}
           />
@@ -77,7 +79,7 @@ function AccesoObjetivos({ datos }: { datos: Datos }) {
   )
 }
 
-function Personas({ datos }: { datos: Datos }) {
+function Personas({ datos }: Readonly<{ datos: Datos }>) {
   const aplicar = useStore((s) => s.aplicar)
 
   return (
@@ -104,7 +106,7 @@ function Personas({ datos }: { datos: Datos }) {
   )
 }
 
-function Recurrentes({ datos }: { datos: Datos }) {
+function Recurrentes({ datos }: Readonly<{ datos: Datos }>) {
   const abrirModalGasto = useStore((s) => s.abrirModalGasto)
 
   return (
@@ -114,6 +116,11 @@ function Recurrentes({ datos }: { datos: Datos }) {
     >
       {datos.recurrentes.map((r) => {
         const ajustes = Object.keys(r.overrides).length
+        const fin = r.hasta ? etiquetaMes(r.hasta) : 'sin fin'
+        const ajustados = pluralMeses(ajustes, 'ajustado', 'ajustados')
+        const detalle = [`${nombrePersona(datos, r.personaId)} · ${etiquetaMes(r.desde)} – ${fin}`]
+        if (ajustados) detalle.push(ajustados)
+
         return (
           <FilaLista
             key={r.id}
@@ -123,9 +130,7 @@ function Recurrentes({ datos }: { datos: Datos }) {
                 {r.concepto || 'Recurrente'}
               </span>
             }
-            detalle={`${nombrePersona(datos, r.personaId)} · ${etiquetaMes(r.desde)} – ${
-              r.hasta ? etiquetaMes(r.hasta) : 'sin fin'
-            }${ajustes > 0 ? ` · ${ajustes} ajustado${ajustes === 1 ? '' : 's'}` : ''}`}
+            detalle={detalle.join(' · ')}
             accion={
               <span className="flex items-center gap-1">
                 <span className="cifras">{euros(r.importe)}</span>
@@ -162,7 +167,7 @@ function Recurrentes({ datos }: { datos: Datos }) {
  * Invitar a la otra persona. La app puede dar permisos sobre el archivo que ella
  * misma creó, así que no hace falta pasar por la web de Drive.
  */
-function Compartir({ datos }: { datos: Datos }) {
+function Compartir({ datos }: Readonly<{ datos: Datos }>) {
   const fileId = useStore((s) => s.fileId)
   const usuario = useStore((s) => s.usuario)
   const [email, setEmail] = useState('')

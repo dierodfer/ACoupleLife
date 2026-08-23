@@ -51,7 +51,7 @@ export function Boton({
 /* ------------------------------------------------------ Títulos y cabecera */
 
 /** Título grande de iOS, el que encabeza una pantalla al empezar a leerla. */
-export function TituloGrande({ children, accion }: { children: ReactNode; accion?: ReactNode }) {
+export function TituloGrande({ children, accion }: Readonly<{ children: ReactNode; accion?: ReactNode }>) {
   return (
     <div className="flex items-end justify-between gap-3 px-1">
       <h1 className="titulo-grande">{children}</h1>
@@ -64,7 +64,7 @@ export function TituloGrande({ children, accion }: { children: ReactNode; accion
  * Botón de volver con chevron, como la barra de navegación de iOS. Dice a
  * dónde vuelve, no un «atrás» a secas: a Objetivo se llega desde dos sitios.
  */
-export function CabeceraVolver({ destino, onVolver }: { destino: string; onVolver: () => void }) {
+export function CabeceraVolver({ destino, onVolver }: Readonly<{ destino: string; onVolver: () => void }>) {
   return (
     <button
       type="button"
@@ -88,12 +88,12 @@ export function Grupo({
   pie,
   className,
   children,
-}: {
+}: Readonly<{
   titulo?: ReactNode
   pie?: ReactNode
   className?: string
   children: ReactNode
-}) {
+}>) {
   return (
     <section className={className}>
       {titulo && (
@@ -125,7 +125,7 @@ export function FilaLista({
   onClick,
   destructivo,
   sinChevron,
-}: {
+}: Readonly<{
   titulo: ReactNode
   detalle?: ReactNode
   valor?: ReactNode
@@ -134,7 +134,7 @@ export function FilaLista({
   destructivo?: boolean
   /** Para filas pulsables que no navegan a otra pantalla (p. ej. «Añadir…»). */
   sinChevron?: boolean
-}) {
+}>) {
   const contenido = (
     <>
       <span className="min-w-0 flex-1">
@@ -162,12 +162,12 @@ export function Fila({
   importe,
   tono = 'normal',
   accion,
-}: {
+}: Readonly<{
   concepto: ReactNode
   importe: ReactNode
   tono?: 'normal' | 'tenue' | 'fuerte'
   accion?: ReactNode
-}) {
+}>) {
   return (
     <div className="flex items-center justify-between gap-3 py-1.5">
       <span
@@ -197,7 +197,7 @@ export function Fila({
 
 /* --------------------------------------------------------------- Tarjetas */
 
-export function Tarjeta({ children, className }: { children: ReactNode; className?: string }) {
+export function Tarjeta({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
   return (
     <section className={clases('rounded-tarjeta bg-superficie p-4', className)}>{children}</section>
   )
@@ -211,12 +211,12 @@ export function ControlSegmentado<T extends string>({
   valor,
   onCambiar,
   className,
-}: {
+}: Readonly<{
   opciones: { valor: T; etiqueta: string }[]
   valor: T
   onCambiar: (valor: T) => void
   className?: string
-}) {
+}>) {
   return (
     <div className={clases('flex gap-0.5 rounded-fila bg-relleno p-0.5', className)}>
       {opciones.map((o) => {
@@ -262,7 +262,10 @@ export function Entrada({
   )
 }
 
-export function Selector({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+export function Selector({
+  className,
+  ...props
+}: Readonly<SelectHTMLAttributes<HTMLSelectElement>>) {
   return <select {...props} className={clases(ESTILO_ENTRADA, 'appearance-none', className)} />
 }
 
@@ -270,11 +273,11 @@ export function Campo({
   etiqueta,
   ayuda,
   children,
-}: {
+}: Readonly<{
   etiqueta: string
   ayuda?: ReactNode
   children: ReactNode
-}) {
+}>) {
   return (
     <label className="flex flex-col gap-1.5">
       <span className="flex items-center gap-1 text-[13px] font-medium uppercase tracking-[0.05em] text-tenue">
@@ -293,7 +296,7 @@ export function Campo({
  * configuración. Se abre al pulsar, no al pasar por encima: en móvil no hay
  * hover y ese texto se perdería.
  */
-export function Info({ children }: { children: ReactNode }) {
+export function Info({ children }: Readonly<{ children: ReactNode }>) {
   const [abierto, setAbierto] = useState(false)
 
   return (
@@ -329,12 +332,12 @@ export function Modal({
   onCerrar,
   titulo,
   children,
-}: {
+}: Readonly<{
   abierto: boolean
   onCerrar: () => void
   titulo?: string
   children: ReactNode
-}) {
+}>) {
   if (!abierto) return null
 
   return (
@@ -374,11 +377,11 @@ export function Aviso({
   tono = 'info',
   children,
   accion,
-}: {
+}: Readonly<{
   tono?: 'info' | 'error'
   children: ReactNode
   accion?: ReactNode
-}) {
+}>) {
   return (
     <div
       className={clases(
@@ -392,6 +395,6 @@ export function Aviso({
   )
 }
 
-export function Vacio({ children }: { children: ReactNode }) {
+export function Vacio({ children }: Readonly<{ children: ReactNode }>) {
   return <p className="px-4 py-6 text-center text-[15px] text-tenue">{children}</p>
 }

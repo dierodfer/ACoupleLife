@@ -21,13 +21,19 @@ Todo el código, comentarios y UI están en español.
 npm run dev         # servidor de desarrollo (Vite)
 npm test            # tests de una vez (Vitest)
 npm run test:watch  # tests en watch
+npm run lint        # ESLint + SonarJS
 npm run typecheck   # tsc -b --noEmit
 npm run build       # tsc -b && vite build -> dist/
 ```
 
 Un solo test o archivo: `npx vitest run src/lib/calculo.test.ts -t "nombre del test"`.
 
-No hay linter configurado; `typecheck` es la única comprobación estática aparte de los tests.
+El linter usa **SonarJS**, el mismo motor de reglas que aplica SonarCloud a JS/TS, así que
+pasar `npm run lint` en local evita que los problemas aparezcan luego en el análisis remoto.
+La configuración (`eslint.config.js`) desactiva dos reglas con su motivo escrito al lado:
+`todo-tag` confunde la palabra española «todo» con un marcador TODO, y `redundant-type-aliases`
+señala los alias semánticos de `tipos.ts` (`MesKey`, `FechaKey`, `PersonaId`), que existen
+para documentar el formato de cada cadena.
 
 ## Arquitectura
 
@@ -94,6 +100,6 @@ Tailwind para que la app respete el tema claro/oscuro automáticamente.
 
 ## CI/despliegue
 
-`.github/workflows/deploy.yml`: en cada push y PR corre `typecheck` → `test` → `build`
+`.github/workflows/deploy.yml`: en cada push y PR corre `lint` → `typecheck` → `test` → `build`
 (inyectando los secrets `GOOGLE_CLIENT_ID`/`GOOGLE_API_KEY`); al llegar a `main` publica
 `dist/` en GitHub Pages.

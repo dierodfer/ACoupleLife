@@ -9,7 +9,9 @@ import { ResumenMensual } from './componentes/ResumenMensual'
 import { SelectorPersonaActiva } from './componentes/SelectorPersonaActiva'
 import { Aviso, Boton } from './componentes/ui'
 import { haceCuanto } from './lib/formato'
-import { useStore, type Pestana } from './store/useStore'
+import type { Datos } from './lib/tipos'
+import type { Usuario } from './services/auth'
+import { useStore, type EstadoApp, type Pestana } from './store/useStore'
 
 const PESTANAS: { clave: Pestana; titulo: string; Icono: typeof IconoMes }[] = [
   { clave: 'mes', titulo: 'Mes', Icono: IconoMes },
@@ -78,6 +80,31 @@ export function App() {
   )
 }
 
+/**
+ * Rótulo de la barra de estado. Cuando lo último guardado es de la otra
+ * persona se dice quién fue: en un archivo a dos manos, importa.
+ */
+function textoGuardado(
+  estado: EstadoApp,
+  sinGuardar: boolean,
+  datos: Datos | null,
+  usuario: Usuario | null,
+): string {
+  if (estado === 'guardando') return 'Guardando…'
+  if (estado === 'cargando') return 'Cargando…'
+  if (sinGuardar) return 'Cambios sin guardar'
+  if (!datos?.actualizadoEn) return 'Todo guardado'
+
+  const ajena =
+    datos.actualizadoPor && datos.actualizadoPor !== usuario?.email
+      ? (datos.personas.find((p) => p.email === datos.actualizadoPor)?.nombre ??
+        datos.actualizadoPor)
+      : null
+
+  const cuando = haceCuanto(datos.actualizadoEn)
+  return ajena ? `Guardado ${cuando} · ${ajena}` : `Guardado ${cuando}`
+}
+
 /** Estado del guardado en Drive, incluida la resolución de conflictos. */
 function BarraEstado() {
   const estado = useStore((s) => s.estado)
@@ -108,29 +135,12 @@ function BarraEstado() {
     )
   }
 
-  // Quién guardó por última vez, si no has sido tú.
-  const otraPersona =
-    datos?.actualizadoPor && datos.actualizadoPor !== usuario?.email
-      ? (datos.personas.find((p) => p.email === datos.actualizadoPor)?.nombre ??
-        datos.actualizadoPor)
-      : null
-
   const ocupado = estado === 'guardando' || estado === 'cargando'
 
   return (
     <header className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2 text-[13px] text-tenue">
-        <span className="min-w-0 truncate">
-          {estado === 'guardando'
-            ? 'Guardando…'
-            : estado === 'cargando'
-              ? 'Cargando…'
-              : sinGuardar
-                ? 'Cambios sin guardar'
-                : datos?.actualizadoEn
-                  ? `Guardado ${haceCuanto(datos.actualizadoEn)}${otraPersona ? ` · ${otraPersona}` : ''}`
-                  : 'Todo guardado'}
-        </span>
+        <span className="min-w-0 truncate">{textoGuardado(estado, sinGuardar, datos, usuario)}</span>
 
         <span className="flex shrink-0 items-center gap-1">
           {sinGuardar && !ocupado && (

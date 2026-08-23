@@ -9,7 +9,7 @@ import { NavegadorAnio } from './RejillaMeses'
 import { Fila, FilaLista, Grupo, Tarjeta, TituloGrande } from './ui'
 
 /** Estado global del año, con acceso directo al anterior para comparar. */
-export function ResumenAnual({ datos }: { datos: Datos }) {
+export function ResumenAnual({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
   const verMes = useStore((s) => s.verMes)
   const [anio, setAnio] = useState(partesMes(mes).anio)

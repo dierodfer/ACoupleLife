@@ -7,7 +7,7 @@ import { ControlSegmentado } from './ui'
  * efectivo. Visible en toda la app (montado una sola vez en `App.tsx`) para
  * no tener que elegir persona en cada formulario.
  */
-export function SelectorPersonaActiva({ datos }: { datos: Datos }) {
+export function SelectorPersonaActiva({ datos }: Readonly<{ datos: Datos }>) {
   const personaActiva = useStore((s) => s.personaActiva)
   const setPersonaActiva = useStore((s) => s.setPersonaActiva)
 

@@ -20,10 +20,10 @@ export interface EstadoMes {
 export function NavegadorAnio({
   anio,
   onCambiar,
-}: {
+}: Readonly<{
   anio: number
   onCambiar: (anio: number) => void
-}) {
+}>) {
   return (
     <div className="flex items-center justify-between">
       <button
@@ -47,6 +47,14 @@ export function NavegadorAnio({
   )
 }
 
+/** Prioridad de los estados de una celda: seleccionado gana a todo lo demás. */
+function estiloCelda({ seleccionado, enRango, hoy }: EstadoMes): string {
+  if (seleccionado) return 'bg-acento font-semibold text-white'
+  if (enRango) return 'bg-acento/12 text-acento'
+  if (hoy) return 'font-semibold text-acento'
+  return 'text-tinta active:bg-relleno'
+}
+
 /**
  * Rejilla de los doce meses de un año. La usan el selector de mes de la
  * pantalla principal y el de rango de los gastos recurrentes; cada uno decide
@@ -56,11 +64,11 @@ export function RejillaMeses({
   anio,
   estadoDe,
   onTocarMes,
-}: {
+}: Readonly<{
   anio: number
   estadoDe: (mes: MesKey) => EstadoMes
   onTocarMes: (mes: MesKey) => void
-}) {
+}>) {
   return (
     <div className="grid grid-cols-4 gap-1.5">
       {ABREVIADOS.map((abreviado, i) => {
@@ -73,16 +81,11 @@ export function RejillaMeses({
             type="button"
             aria-current={seleccionado ? 'true' : undefined}
             onClick={() => onTocarMes(clave)}
-            className={[
-              'relative rounded-fila py-2.5 text-[15px] transition',
-              seleccionado
-                ? 'bg-acento font-semibold text-white'
-                : enRango
-                  ? 'bg-acento/12 text-acento'
-                  : hoy
-                    ? 'font-semibold text-acento'
-                    : 'text-tinta active:bg-relleno',
-            ].join(' ')}
+            className={`relative rounded-fila py-2.5 text-[15px] transition ${estiloCelda({
+              seleccionado,
+              enRango,
+              hoy,
+            })}`}
           >
             {abreviado}
             {marcado && (

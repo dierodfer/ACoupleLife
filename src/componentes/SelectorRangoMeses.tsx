@@ -13,11 +13,11 @@ export function SelectorRangoMeses({
   desde,
   hasta,
   onCambiar,
-}: {
+}: Readonly<{
   desde: string
   hasta: string
   onCambiar: (desde: string, hasta: string) => void
-}) {
+}>) {
   const [abierto, setAbierto] = useState(false)
   const [anioVisible, setAnioVisible] = useState(partesMes(desde).anio)
   // Durante la selección: null hasta que se toca el primer mes del rango nuevo.

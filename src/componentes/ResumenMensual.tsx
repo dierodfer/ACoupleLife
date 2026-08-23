@@ -28,7 +28,7 @@ import { Boton, Campo, Entrada, Fila, FilaLista, Grupo, Tarjeta, Vacio } from '.
  * Pantalla principal. Responde a la única pregunta que importa: cuánto tiene que
  * transferir cada uno este mes.
  */
-export function ResumenMensual({ datos }: { datos: Datos }) {
+export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
   const abrirPestana = useStore((s) => s.abrirPestana)
   const resumen = resumenMes(datos, mes)
@@ -100,7 +100,7 @@ export function ResumenMensual({ datos }: { datos: Datos }) {
   )
 }
 
-function Movimientos({ datos }: { datos: Datos }) {
+function Movimientos({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
   const aplicar = useStore((s) => s.aplicar)
   const abrirModalGasto = useStore((s) => s.abrirModalGasto)
@@ -194,7 +194,7 @@ function Movimientos({ datos }: { datos: Datos }) {
  * gestiona desde aquí porque es una aportación más del mes, igual que los
  * gastos y las transferencias.
  */
-function Efectivos({ datos }: { datos: Datos }) {
+function Efectivos({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
   const aplicar = useStore((s) => s.aplicar)
   const personaActiva = useStore((s) => s.personaActiva)
@@ -303,7 +303,7 @@ function Efectivos({ datos }: { datos: Datos }) {
   )
 }
 
-function BotonBorrar({ etiqueta, onBorrar }: { etiqueta: string; onBorrar: () => void }) {
+function BotonBorrar({ etiqueta, onBorrar }: Readonly<{ etiqueta: string; onBorrar: () => void }>) {
   return (
     <button
       type="button"
@@ -323,10 +323,10 @@ function BotonBorrar({ etiqueta, onBorrar }: { etiqueta: string; onBorrar: () =>
 function AjusteRecurrente({
   recurrenteId,
   importeActual,
-}: {
+}: Readonly<{
   recurrenteId: string
   importeActual: number
-}) {
+}>) {
   const mes = useStore((s) => s.mes)
   const aplicar = useStore((s) => s.aplicar)
   const [editando, setEditando] = useState(false)
@@ -385,7 +385,7 @@ function AjusteRecurrente({
   )
 }
 
-function FormularioTransferencia({ datos }: { datos: Datos }) {
+function FormularioTransferencia({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
   const aplicar = useStore((s) => s.aplicar)
   const personaActiva = useStore((s) => s.personaActiva)

@@ -14,7 +14,7 @@ type Tipo = 'puntual' | 'recurrente'
  * Al ser el mismo componente montado una sola vez en `App.tsx`, se evita
  * duplicar el formulario en dos sitios.
  */
-export function ModalGasto({ datos }: { datos: Datos }) {
+export function ModalGasto({ datos }: Readonly<{ datos: Datos }>) {
   const modalGasto = useStore((s) => s.modalGasto)
   const cerrarModalGasto = useStore((s) => s.cerrarModalGasto)
 
@@ -37,15 +37,23 @@ export function ModalGasto({ datos }: { datos: Datos }) {
   )
 }
 
+function pieDelFormulario(tipo: Tipo, editando: boolean, ajustes: number): string | undefined {
+  if (tipo === 'puntual') return 'Se registra para el mes que estás viendo.'
+  if (!editando || ajustes === 0) return undefined
+
+  const meses = ajustes === 1 ? 'mes ajustado' : 'meses ajustados'
+  return `${ajustes} ${meses} manualmente desde la pantalla del mes.`
+}
+
 function FormularioGasto({
   datos,
   editandoId,
   tipoInicial,
-}: {
+}: Readonly<{
   datos: Datos
   editandoId: string | null
   tipoInicial: Tipo
-}) {
+}>) {
   const mes = useStore((s) => s.mes)
   const aplicar = useStore((s) => s.aplicar)
   const cerrarModalGasto = useStore((s) => s.cerrarModalGasto)
@@ -65,6 +73,7 @@ function FormularioGasto({
   const [hasta, setHasta] = useState(recurrente?.hasta ?? '')
 
   const ajustes = recurrente ? Object.keys(recurrente.overrides).length : 0
+  const pie = pieDelFormulario(tipo, editando, ajustes)
 
   const guardar = () => {
     const cantidad = leeImporte(importe)
@@ -115,15 +124,7 @@ function FormularioGasto({
         />
       )}
 
-      <Grupo
-        pie={
-          tipo === 'puntual'
-            ? 'Se registra para el mes que estás viendo.'
-            : editando && ajustes > 0
-              ? `${ajustes} ${ajustes === 1 ? 'mes ajustado' : 'meses ajustados'} manualmente desde la pantalla del mes.`
-              : undefined
-        }
-      >
+      <Grupo pie={pie}>
         <div className="flex flex-col gap-4 p-4">
           {editando && (
             <Campo etiqueta="Persona">
