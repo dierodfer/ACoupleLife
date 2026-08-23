@@ -4,10 +4,25 @@ import type { ClienteToken, RespuestaToken } from './google'
  * Autenticación con Google desde una web estática.
  *
  * Sin backend solo cabe el "token flow" de Google Identity Services: devuelve un
- * access token de ~1 hora y **no** hay refresh token. Por eso el token se
- * renueva de forma silenciosa (`prompt: ''`) cuando le quedan menos de cinco
- * minutos, y quien llame debe pedirlo siempre con `tokenValido()` en vez de
- * guardárselo.
+ * access token de ~1 hora y **no** hay refresh token. Para no acabar pidiendo
+ * login en cada visita, la sesión se apoya en tres cosas:
+ *
+ * 1. El token y el perfil se guardan en `localStorage`, así que mientras el
+ *    token siga vigente se entra sin hablar con Google siquiera.
+ * 2. Cuando caduca se renueva en silencio (`prompt: 'none'`) pasando `hint` con
+ *    el email ya conocido: sin esa pista Google no sabe qué cuenta elegir si hay
+ *    varias iniciadas en el navegador, y la renovación falla.
+ * 3. Si la renovación silenciosa no llega a contestar —los navegadores que
+ *    bloquean cookies de terceros cortan ese iframe sin avisar—, se abandona por
+ *    tiempo en vez de dejar la app colgada, y se vuelve a la pantalla de acceso.
+ *
+ * Guardar el token en `localStorage` amplía su exposición: ya no vive solo en
+ * memoria, sino en el perfil del navegador de ese dispositivo. Es un token de
+ * una hora, limitado al scope `drive.file` (los archivos que crea esta app), y
+ * la alternativa era volver a pasar por Google en cada visita.
+ *
+ * Quien necesite un token debe pedirlo siempre con `tokenValido()`, nunca
+ * guardárselo por su cuenta.
  */
 
 const SCOPES = [
@@ -17,8 +32,13 @@ const SCOPES = [
   'profile',
 ].join(' ')
 
+const CLAVE_SESION = 'acouplelife.sesion'
+
 /** Margen con el que renovamos el token antes de que caduque de verdad. */
 const MARGEN_MS = 5 * 60 * 1000
+
+/** Lo que esperamos a una renovación silenciosa antes de darla por perdida. */
+const ESPERA_SILENCIOSA_MS = 12_000
 
 export interface Usuario {
   email: string
@@ -26,12 +46,52 @@ export interface Usuario {
   foto?: string
 }
 
+/** Lo que se guarda entre visitas. El perfil va dentro para arrancar sin red. */
+interface Sesion {
+  token: string
+  /** Momento (ms desde época) en que caduca el access token. */
+  caducaEn: number
+  usuario: Usuario
+}
+
 export class ErrorAuth extends Error {}
 
 let cliente: ClienteToken | null = null
-let token: string | null = null
-let caducaEn = 0
 let pendiente: ((respuesta: RespuestaToken) => void) | null = null
+/** Renovación silenciosa en curso, para que varias peticiones a la vez compartan una. */
+let renovacion: Promise<Sesion> | null = null
+
+function leerSesion(): Sesion | null {
+  try {
+    const bruto = localStorage.getItem(CLAVE_SESION)
+    if (!bruto) return null
+
+    const guardado = JSON.parse(bruto) as Partial<Sesion>
+    const usuario = guardado.usuario
+    if (typeof guardado.token !== 'string' || typeof guardado.caducaEn !== 'number') return null
+    if (typeof usuario?.email !== 'string' || typeof usuario.nombre !== 'string') return null
+
+    return { token: guardado.token, caducaEn: guardado.caducaEn, usuario }
+  } catch {
+    // JSON corrupto, o un navegador que no deja tocar `localStorage`.
+    return null
+  }
+}
+
+function recordarSesion(nueva: Sesion | null): void {
+  try {
+    if (nueva) localStorage.setItem(CLAVE_SESION, JSON.stringify(nueva))
+    else localStorage.removeItem(CLAVE_SESION)
+  } catch {
+    // Sin almacenamiento la app sigue funcionando; solo pedirá login más a menudo.
+  }
+}
+
+let sesion: Sesion | null = leerSesion()
+
+function vigente(s: Sesion | null): s is Sesion {
+  return s !== null && Date.now() < s.caducaEn - MARGEN_MS
+}
 
 function clientId(): string {
   const id = import.meta.env.VITE_GOOGLE_CLIENT_ID
@@ -84,32 +144,79 @@ async function asegurarCliente(): Promise<ClienteToken> {
 }
 
 /**
- * Pide un access token. Con `silencioso` no se muestra ninguna ventana: si el
- * usuario ya tiene sesión de Google, el token se renueva sin que se entere; si
- * no la tiene, falla y hay que volver a pedirlo de forma interactiva.
+ * Pide un access token a Google.
+ *
+ * `prompt: 'none'` no enseña nada: o hay permiso concedido y sesión de Google
+ * abierta, o falla. `prompt: ''` solo pregunta la primera vez, que es justo lo
+ * que quiere el login explícito: quien ya dio permiso entra de un toque, sin
+ * repetir la pantalla de consentimiento.
+ *
+ * El `hint` va solo en la renovación silenciosa, donde es imprescindible para
+ * que Google sepa qué cuenta continuar. En el login explícito se omite a
+ * propósito: ahí puede estar entrando la otra persona del mismo dispositivo, y
+ * la pista la metería en la sesión de quien entró la última vez.
  */
-async function pedirToken(silencioso: boolean): Promise<string> {
+async function pedirToken(silencioso: boolean): Promise<{ token: string; caducaEn: number }> {
   const c = await asegurarCliente()
+  const hint = silencioso ? sesion?.usuario.email : undefined
 
-  return new Promise<string>((resolve, reject) => {
-    pendiente = (respuesta) => {
+  return new Promise((resolve, reject) => {
+    let reloj: ReturnType<typeof setTimeout> | null = null
+
+    const cerrar = () => {
       pendiente = null
+      if (reloj) clearTimeout(reloj)
+    }
+
+    pendiente = (respuesta) => {
+      cerrar()
       if (respuesta.error || !respuesta.access_token) {
         reject(new ErrorAuth(respuesta.error_description ?? respuesta.error ?? 'Acceso denegado'))
         return
       }
-      token = respuesta.access_token
-      caducaEn = Date.now() + (respuesta.expires_in ?? 3600) * 1000
-      resolve(token)
+      resolve({
+        token: respuesta.access_token,
+        caducaEn: Date.now() + (respuesta.expires_in ?? 3600) * 1000,
+      })
     }
-    c.requestAccessToken({ prompt: silencioso ? '' : 'consent' })
+
+    if (silencioso) {
+      reloj = setTimeout(() => {
+        cerrar()
+        reject(new ErrorAuth('Google no respondió a la renovación de la sesión.'))
+      }, ESPERA_SILENCIOSA_MS)
+    }
+
+    c.requestAccessToken({ prompt: silencioso ? 'none' : '', hint })
   })
 }
 
-/** Login explícito, con ventana de Google. */
+/** Guarda la sesión resultante de un token nuevo, reutilizando el perfil si ya lo teníamos. */
+async function abrirSesion(token: string, caducaEn: number): Promise<Sesion> {
+  const usuario = sesion?.usuario ?? (await perfil(token))
+  sesion = { token, caducaEn, usuario }
+  recordarSesion(sesion)
+  return sesion
+}
+
+/** Renueva en silencio. Las llamadas simultáneas comparten la misma petición. */
+function renovar(): Promise<Sesion> {
+  renovacion ??= pedirToken(true)
+    .then(({ token, caducaEn }) => abrirSesion(token, caducaEn))
+    .finally(() => {
+      renovacion = null
+    })
+  return renovacion
+}
+
+/** Login explícito. Abre ventana de Google solo si hace falta. */
 export async function entrar(): Promise<Usuario> {
-  await pedirToken(false)
-  return datosUsuario()
+  const { token, caducaEn } = await pedirToken(false)
+  // Puede ser otra persona la que entra, así que el perfil se relee siempre.
+  const usuario = await perfil(token)
+  sesion = { token, caducaEn, usuario }
+  recordarSesion(sesion)
+  return usuario
 }
 
 /**
@@ -117,44 +224,67 @@ export async function entrar(): Promise<Usuario> {
  * llamadas a Drive deben pasar por aquí.
  */
 export async function tokenValido(): Promise<string> {
-  if (token && Date.now() < caducaEn - MARGEN_MS) return token
-  return pedirToken(true)
+  if (vigente(sesion)) return sesion.token
+  return (await renovar()).token
 }
 
 /** ¿Hay una sesión utilizable ahora mismo, sin abrir ninguna ventana? */
 export function haySesion(): boolean {
-  return token !== null && Date.now() < caducaEn
+  return sesion !== null && Date.now() < sesion.caducaEn
 }
 
-/** Intenta recuperar la sesión al abrir la app, sin molestar al usuario. */
+/**
+ * Da por muerto el token guardado sin cerrar la sesión: la siguiente petición
+ * pedirá uno nuevo. Lo usa `drive.ts` cuando Google responde 401, que es como se
+ * entera de que un token guardado ya no vale (revocado desde la cuenta, por
+ * ejemplo) antes de que le tocara caducar.
+ */
+export function invalidarToken(): void {
+  if (!sesion) return
+  sesion = { ...sesion, caducaEn: 0 }
+  recordarSesion(sesion)
+}
+
+/**
+ * Intenta recuperar la sesión al abrir la app, sin molestar al usuario. Con el
+ * token todavía vigente ni siquiera se llama a Google: se entra directo.
+ */
 export async function reanudarSesion(): Promise<Usuario | null> {
+  if (!sesion) return null
+  if (vigente(sesion)) return sesion.usuario
+
   try {
-    await pedirToken(true)
-    return await datosUsuario()
+    return (await renovar()).usuario
   } catch {
+    // La sesión guardada ya no sirve. No se borra: el email sigue valiendo como
+    // pista para que el login explícito entre sin elegir cuenta ni repetir permisos.
     return null
   }
 }
 
-export async function datosUsuario(): Promise<Usuario> {
-  const acceso = await tokenValido()
+/** Perfil de Google del dueño de un token concreto. */
+async function perfil(acceso: string): Promise<Usuario> {
   const respuesta = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
     headers: { Authorization: `Bearer ${acceso}` },
   })
   if (!respuesta.ok) throw new ErrorAuth('No se pudo leer el perfil de Google.')
 
-  const perfil = (await respuesta.json()) as { email?: string; name?: string; picture?: string }
+  const datos = (await respuesta.json()) as { email?: string; name?: string; picture?: string }
   return {
-    email: perfil.email ?? '',
-    nombre: perfil.name ?? perfil.email ?? 'Usuario',
-    foto: perfil.picture,
+    email: datos.email ?? '',
+    nombre: datos.name ?? datos.email ?? 'Usuario',
+    foto: datos.picture,
   }
 }
 
+export async function datosUsuario(): Promise<Usuario> {
+  return perfil(await tokenValido())
+}
+
 export function salir(): void {
-  const actual = token
-  token = null
-  caducaEn = 0
+  const actual = sesion?.token
+  sesion = null
+  recordarSesion(null)
   if (actual) window.google?.accounts?.oauth2?.revoke(actual)
 }
 

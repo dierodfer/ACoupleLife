@@ -1,6 +1,6 @@
 import type { Datos } from '../lib/tipos'
 import { normalizar, nuevoId } from '../lib/esquema'
-import { cargarScript, tokenValido } from './auth'
+import { cargarScript, invalidarToken, tokenValido } from './auth'
 
 /**
  * Acceso al archivo JSON compartido en Google Drive.
@@ -42,7 +42,11 @@ interface MetadatosApi {
   modifiedTime: string
 }
 
-async function peticion(url: string, opciones: RequestInit = {}): Promise<Response> {
+async function peticion(
+  url: string,
+  opciones: RequestInit = {},
+  reintento = false,
+): Promise<Response> {
   const token = await tokenValido()
   const respuesta = await fetch(url, {
     ...opciones,
@@ -51,6 +55,14 @@ async function peticion(url: string, opciones: RequestInit = {}): Promise<Respon
       Authorization: `Bearer ${token}`,
     },
   })
+
+  // Un 401 con un token que creíamos vigente significa que ya no vale (revocado
+  // desde la cuenta de Google, por ejemplo). Se descarta y se pide otro; si el
+  // segundo intento también falla, el error sale como cualquier otro.
+  if (respuesta.status === 401 && !reintento) {
+    invalidarToken()
+    return peticion(url, opciones, true)
+  }
 
   if (!respuesta.ok) {
     const detalle = await respuesta.text().catch(() => '')

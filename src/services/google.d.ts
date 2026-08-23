@@ -11,7 +11,12 @@ export interface RespuestaToken {
 }
 
 export interface ClienteToken {
-  requestAccessToken(opciones?: { prompt?: '' | 'none' | 'consent' | 'select_account' }): void
+  requestAccessToken(opciones?: {
+    prompt?: '' | 'none' | 'consent' | 'select_account'
+    /** Email de la cuenta a usar. Sin él Google no puede resolver en silencio
+     * cuál es si hay varias iniciadas en el navegador. */
+    hint?: string
+  }): void
 }
 
 declare global {

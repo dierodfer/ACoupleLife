@@ -60,6 +60,10 @@ para documentar el formato de cada cadena.
    - `auth.ts` — Google Identity Services, *token flow* (sin backend, así que no hay refresh
      token: un access token dura ~1h). Todo el que necesite un token debe pedirlo con
      `tokenValido()`, que lo renueva en silencio cuando quedan <5 min, nunca guardarlo.
+     La sesión (token, caducidad y perfil) se persiste en `localStorage` para no pasar por
+     Google en cada visita; la renovación silenciosa usa `prompt: 'none'` con `hint`, sin el
+     cual Google no resuelve la cuenta si hay varias iniciadas. Tiene tests
+     (`auth.test.ts`), porque toda esa lógica ocurre sin interfaz.
    - `drive.ts` — CRUD del archivo JSON en Drive. Drive API v3 no expone `etag`; el control de
      concurrencia usa el campo `version` (entero que Drive incrementa en cada escritura). Es
      **detección de conflicto, no bloqueo**: `guardar()` relee la `version` remota antes de
