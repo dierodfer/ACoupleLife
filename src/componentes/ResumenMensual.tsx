@@ -503,7 +503,7 @@ function FormularioTransferencia({ datos }: Readonly<{ datos: Datos }>) {
             {completa && <IconoCheck className="h-4 w-4" />}
           </span>
           <span>
-            Marcar como completa
+            <span className="block">Marcar como completa</span>
             <span className="block text-[13px] text-tenue">
               Transfiere los {euros(pendiente)} que faltan y queda al día.
             </span>

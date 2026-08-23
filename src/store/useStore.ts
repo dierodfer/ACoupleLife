@@ -107,22 +107,22 @@ const MODAL_GASTO_CERRADO = {
 
 let temporizador: ReturnType<typeof setTimeout> | null = null
 
+function cancelarGuardado() {
+  if (temporizador) clearTimeout(temporizador)
+  temporizador = null
+}
+
 function mensaje(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
 export const useStore = create<Estado>((set, get) => {
   function programarGuardado(espera: number) {
-    if (temporizador) clearTimeout(temporizador)
+    cancelarGuardado()
     temporizador = setTimeout(() => {
       temporizador = null
       void get().guardar()
     }, espera)
-  }
-
-  function cancelarGuardado() {
-    if (temporizador) clearTimeout(temporizador)
-    temporizador = null
   }
 
   function programarAutoguardado() {

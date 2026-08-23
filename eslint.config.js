@@ -28,8 +28,8 @@ export default tseslint.config(
     rules: {
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
 
-      // El código está en español y «todo» significa «all»: la regla lo confunde
-      // con un marcador TODO en cada comentario que usa la palabra.
+      // El código está en español y «todo» significa «all»: la regla lo toma por
+      // un marcador de tarea pendiente en cada comentario que usa la palabra.
       'sonarjs/todo-tag': 'off',
 
       // `PersonaId`, `MesKey` y `FechaKey` son alias semánticos de `string`
