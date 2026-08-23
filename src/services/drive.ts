@@ -1,5 +1,5 @@
 import type { Datos } from '../lib/tipos'
-import { normalizar } from '../lib/esquema'
+import { normalizar, nuevoId } from '../lib/esquema'
 import { cargarScript, tokenValido } from './auth'
 
 /**
@@ -67,7 +67,7 @@ export async function metadatos(fileId: string): Promise<ArchivoDrive> {
 
 /** Crea el archivo (flujo del primer usuario) y devuelve su id y versión. */
 export async function crearArchivo(datos: Datos): Promise<ArchivoDrive> {
-  const limite = `limite-${Math.random().toString(36).slice(2)}`
+  const limite = `limite-${nuevoId('m')}`
   const cuerpo = [
     `--${limite}`,
     'Content-Type: application/json; charset=UTF-8',

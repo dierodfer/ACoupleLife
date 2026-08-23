@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { objetivoDelMes } from '../lib/calculo'
 import { NOMBRES_MES, mesActual, mesKey, partesMes } from '../lib/fechas'
-import { euros, leeImporte } from '../lib/formato'
+import { euros, importeEditable, leeImporte } from '../lib/formato'
 import { cambiarObjetivoMensual, fijarExcepcionObjetivo } from '../lib/mutaciones'
 import type { Datos, Persona, PersonaId } from '../lib/tipos'
 import { ETIQUETAS_PESTANA, useStore } from '../store/useStore'
@@ -11,7 +11,7 @@ import {
   Boton,
   CabeceraVolver,
   ControlSegmentado,
-  Entrada,
+  EntradaEuros,
   Grupo,
   Info,
   TituloGrande,
@@ -22,7 +22,7 @@ import {
  * y las excepciones que la rompen. El mes a mes se recorre persona a persona
  * porque en un móvil no caben dos columnas de importes editables.
  */
-export function PantallaObjetivos({ datos }: { datos: Datos }) {
+export function PantallaObjetivos({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
   const volver = useStore((s) => s.volver)
   const destino = useStore((s) => s.historial[s.historial.length - 1] ?? 'mes')
@@ -55,11 +55,11 @@ export function PantallaObjetivos({ datos }: { datos: Datos }) {
 }
 
 /** La regla que aplica a los doce meses del año. */
-function ReglaGeneral({ datos, anio }: { datos: Datos; anio: number }) {
+function ReglaGeneral({ datos, anio }: Readonly<{ datos: Datos; anio: number }>) {
   return (
     <Grupo
       titulo="Regla general"
-      pie={`Se aplica a los doce meses de ${anio}. Al escribir un importe se aplica desde el mes en curso y los meses ya pasados se quedan como estaban; «Aplicar a todo el año» los cambia también.`}
+      pie="«Desde este mes» conserva como estaban los meses ya pasados; «Todo el año» los reescribe también."
     >
       {datos.personas.map((persona) => {
         const mensual = datos.anios[String(anio)]?.objetivos[persona.id]?.importeMensual ?? 0
@@ -78,25 +78,28 @@ function ReglaGeneral({ datos, anio }: { datos: Datos; anio: number }) {
 }
 
 /**
- * Importe mensual de una persona. Escribirlo lo aplica respetando los meses ya
- * vividos; el botón lo impone a los doce, incluidos los pasados.
+ * Importe mensual de una persona, con las dos formas de aplicarlo explícitas.
+ * Nada se guarda al salir del campo: el cambio necesita que se elija alcance,
+ * porque reescribir meses ya vividos no es lo mismo que fijar los que vienen.
  */
 function ObjetivoDePersona({
   persona,
   anio,
   mensual,
-}: {
+}: Readonly<{
   persona: Persona
   anio: number
   mensual: number
-}) {
+}>) {
   const aplicar = useStore((s) => s.aplicar)
-  const [valor, setValor] = useState(String(mensual))
+  const [valor, setValor] = useState(importeEditable(mensual))
 
   const anioEnCurso = partesMes(mesActual()).anio === anio
   const mesEnCurso = partesMes(mesActual()).mes
-  // En un año pasado, o en enero, no hay meses vividos que conservar.
+  // En un año pasado, o en enero, no hay meses vividos que conservar: los dos
+  // caminos harían lo mismo, así que solo se ofrece uno.
   const hayHistoricoQueProteger = anioEnCurso && mesEnCurso > 1
+  const sinCambios = leeImporte(valor) === mensual
 
   const guardar = (todoElAnio: boolean) => {
     aplicar((d) =>
@@ -116,33 +119,30 @@ function ObjetivoDePersona({
       <div className="flex items-center justify-between gap-3">
         <span className="font-medium">{persona.nombre}</span>
         <span className="flex items-center gap-2">
-          <Entrada
-            type="text"
-            inputMode="decimal"
+          <EntradaEuros
             aria-label={`Objetivo mensual de ${persona.nombre}`}
-            className="w-28 py-1.5 text-right"
-            value={valor}
-            onChange={(e) => setValor(e.target.value)}
-            onBlur={() => {
-              if (leeImporte(valor) !== mensual) guardar(false)
-            }}
+            className="w-32 py-2 text-right"
+            valor={valor}
+            onCambiar={setValor}
           />
-          <span className="text-[13px] text-tenue">/ mes</span>
+          <span className="shrink-0 text-[13px] text-tenue">/ mes</span>
         </span>
       </div>
 
-      <Boton
-        variante="suave"
-        disabled={!hayHistoricoQueProteger}
-        title={
-          hayHistoricoQueProteger
-            ? `Aplicar también a los meses ya pasados de ${anio}`
-            : `No hay meses pasados en ${anio} que conservar`
-        }
-        onClick={() => guardar(true)}
-      >
-        Aplicar a todo el año
-      </Boton>
+      {hayHistoricoQueProteger ? (
+        <div className="grid grid-cols-2 gap-2">
+          <Boton variante="principal" disabled={sinCambios} onClick={() => guardar(false)}>
+            Desde este mes
+          </Boton>
+          <Boton variante="suave" disabled={sinCambios} onClick={() => guardar(true)}>
+            Todo el año
+          </Boton>
+        </div>
+      ) : (
+        <Boton variante="principal" disabled={sinCambios} onClick={() => guardar(true)}>
+          Guardar para todo {anio}
+        </Boton>
+      )}
     </div>
   )
 }
@@ -151,14 +151,10 @@ function ObjetivoDePersona({
  * Los doce meses de una persona. Cada fila muestra el objetivo efectivo; al
  * cambiarlo se crea una excepción, y el botón de deshacer la retira.
  */
-function MesAMes({ datos, anio }: { datos: Datos; anio: number }) {
-  const aplicar = useStore((s) => s.aplicar)
-  const verMes = useStore((s) => s.verMes)
+function MesAMes({ datos, anio }: Readonly<{ datos: Datos; anio: number }>) {
   const [personaId, setPersonaId] = useState<PersonaId>(datos.personas[0]?.id ?? '')
 
-  const hoy = mesActual()
   const persona = datos.personas.find((p) => p.id === personaId) ?? datos.personas[0]
-  const excepciones = datos.anios[String(anio)]?.objetivos[personaId]?.excepciones ?? {}
 
   const total = datos.personas.reduce(
     (suma, p) => suma + (datos.anios[String(anio)]?.objetivos[p.id]?.importeMensual ?? 0) * 12,
@@ -181,57 +177,90 @@ function MesAMes({ datos, anio }: { datos: Datos; anio: number }) {
         titulo={`Mes a mes · ${persona.nombre}`}
         pie={`Un importe distinto al de la regla queda marcado en azul. El objetivo conjunto de ${anio} según la regla general es ${euros(total)}.`}
       >
-        {NOMBRES_MES.map((nombre, i) => {
-          const clave = mesKey(anio, i + 1)
-          const efectivo = objetivoDelMes(datos, personaId, clave)
-          const esExcepcion = excepciones[String(i + 1)] !== undefined
-
-          return (
-            <div
-              key={clave}
-              className="relative flex min-h-[44px] items-center gap-3 px-4 py-2 after:absolute after:left-4 after:right-0 after:top-0 after:h-px after:bg-borde first:after:hidden"
-            >
-              <button
-                type="button"
-                title="Abrir este mes"
-                onClick={() => verMes(clave)}
-                className={`flex-1 text-left active:opacity-50 ${
-                  clave === hoy ? 'font-semibold text-acento' : ''
-                }`}
-              >
-                {nombre}
-              </button>
-
-              <Entrada
-                type="text"
-                inputMode="decimal"
-                aria-label={`Objetivo de ${persona.nombre} en ${nombre}`}
-                defaultValue={efectivo}
-                key={`${personaId}-${clave}-${efectivo}`}
-                className={`w-28 py-1.5 text-right ${
-                  esExcepcion ? 'border-acento text-acento' : 'text-tenue'
-                }`}
-                onBlur={(e) => {
-                  const importe = leeImporte(e.target.value)
-                  if (importe === efectivo) return
-                  aplicar((d) => fijarExcepcionObjetivo(d, anio, personaId, i + 1, importe))
-                }}
-              />
-
-              <button
-                type="button"
-                title="Volver a la regla general"
-                aria-label={`Quitar la excepción de ${persona.nombre} en ${nombre}`}
-                disabled={!esExcepcion}
-                onClick={() => aplicar((d) => fijarExcepcionObjetivo(d, anio, personaId, i + 1, null))}
-                className="rounded-full p-1 text-sutil transition active:text-acento disabled:opacity-25"
-              >
-                <IconoDeshacer className="h-4 w-4" />
-              </button>
-            </div>
-          )
-        })}
+        {NOMBRES_MES.map((nombre, i) => (
+          <MesDelObjetivo
+            key={mesKey(anio, i + 1)}
+            datos={datos}
+            anio={anio}
+            personaId={personaId}
+            nombrePersona={persona.nombre}
+            nombreMes={nombre}
+            mesDelAnio={i + 1}
+          />
+        ))}
       </Grupo>
+    </div>
+  )
+}
+
+/** Una fila del mes a mes: nombre del mes, importe editable y deshacer. */
+function MesDelObjetivo({
+  datos,
+  anio,
+  personaId,
+  nombrePersona,
+  nombreMes,
+  mesDelAnio,
+}: Readonly<{
+  datos: Datos
+  anio: number
+  personaId: PersonaId
+  nombrePersona: string
+  nombreMes: string
+  mesDelAnio: number
+}>) {
+  const aplicar = useStore((s) => s.aplicar)
+  const verMes = useStore((s) => s.verMes)
+
+  const clave = mesKey(anio, mesDelAnio)
+  const efectivo = objetivoDelMes(datos, personaId, clave)
+  const esExcepcion =
+    (datos.anios[String(anio)]?.objetivos[personaId]?.excepciones ?? {})[String(mesDelAnio)] !==
+    undefined
+
+  const [valor, setValor] = useState(importeEditable(efectivo))
+  // Si el importe guardado cambia por otra vía (la regla general), se recoloca.
+  const [ultimoEfectivo, setUltimoEfectivo] = useState(efectivo)
+  if (ultimoEfectivo !== efectivo) {
+    setUltimoEfectivo(efectivo)
+    setValor(importeEditable(efectivo))
+  }
+
+  return (
+    <div className="relative flex min-h-[52px] items-center gap-2 px-4 py-2 after:absolute after:left-4 after:right-0 after:top-0 after:h-px after:bg-borde first:after:hidden">
+      <button
+        type="button"
+        title="Abrir este mes"
+        onClick={() => verMes(clave)}
+        className={`flex-1 text-left active:opacity-50 ${
+          clave === mesActual() ? 'font-semibold text-acento' : ''
+        }`}
+      >
+        {nombreMes}
+      </button>
+
+      <EntradaEuros
+        aria-label={`Objetivo de ${nombrePersona} en ${nombreMes}`}
+        valor={valor}
+        onCambiar={setValor}
+        className={`w-32 py-2 text-right ${esExcepcion ? 'border-acento text-acento' : 'text-tenue'}`}
+        onBlur={() => {
+          const importe = leeImporte(valor)
+          if (importe === efectivo) return
+          aplicar((d) => fijarExcepcionObjetivo(d, anio, personaId, mesDelAnio, importe))
+        }}
+      />
+
+      <button
+        type="button"
+        title="Volver a la regla general"
+        aria-label={`Quitar la excepción de ${nombrePersona} en ${nombreMes}`}
+        disabled={!esExcepcion}
+        onClick={() => aplicar((d) => fijarExcepcionObjetivo(d, anio, personaId, mesDelAnio, null))}
+        className="shrink-0 rounded-full p-1 text-sutil transition active:text-acento disabled:opacity-25"
+      >
+        <IconoDeshacer className="h-4 w-4" />
+      </button>
     </div>
   )
 }

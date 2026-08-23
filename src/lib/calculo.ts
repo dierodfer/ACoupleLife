@@ -171,19 +171,7 @@ export function aniosConDatos(datos: Datos): number[] {
     .sort((a, b) => b - a)
 }
 
-/**
- * Meses de un año que ya tienen algún movimiento propio (gasto puntual o
- * transferencia). Los recurrentes y el efectivo no cuentan: aplican a todo su
- * rango y marcarían meses en los que nadie ha registrado nada todavía.
- */
-export function mesesConMovimientos(datos: Datos, anio: number): Set<MesKey> {
-  const nodo = nodoAnio(datos, anio)
-  const meses = new Set<MesKey>()
-  for (const gasto of nodo.gastos) meses.add(mesDeFecha(gasto.fecha))
-  for (const transferencia of nodo.transferencias) meses.add(mesDeFecha(transferencia.fecha))
-  return meses
-}
-
+/** Gastos puntuales de un mes, para listarlos en la UI. */
 export function listaGastosDelMes(datos: Datos, mes: MesKey) {
   const { anio } = partesMes(mes)
   return nodoAnio(datos, anio)
@@ -207,6 +195,33 @@ export function listaRecurrentesDelMes(datos: Datos, mes: MesKey) {
 
 export function listaEfectivoDelMes(datos: Datos, mes: MesKey) {
   return datos.efectivo.filter((e) => mesEnRango(mes, e.desde, e.hasta))
+}
+
+/** Si una persona ya ha cubierto su objetivo del mes y qué le falta. */
+export interface Liquidacion {
+  personaId: PersonaId
+  /** Ese mes le pedía aportar algo. Sin objetivo no hay nada que liquidar. */
+  conObjetivo: boolean
+  /** Objetivo cubierto: no le queda nada por transferir. */
+  alDia: boolean
+  /** Lo que aún debe transferir; 0 si ya está al día. */
+  pendiente: number
+}
+
+/**
+ * Estado de liquidación de cada persona en un mes. No se guarda en el archivo:
+ * se deriva del cálculo, así que nunca puede contradecir a los importes.
+ */
+export function liquidacionDelMes(datos: Datos, mes: MesKey): Liquidacion[] {
+  return datos.personas.map((p) => {
+    const { objetivo, pendiente } = resumenPersona(datos, p.id, mes)
+    return {
+      personaId: p.id,
+      conObjetivo: objetivo > 0,
+      alDia: objetivo > 0 && pendiente <= 0,
+      pendiente: Math.max(pendiente, 0),
+    }
+  })
 }
 
 export function anioDe(fecha: string): number {

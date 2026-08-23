@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
   ReactNode,
   SelectHTMLAttributes,
 } from 'react'
+import { combinaPartes, formateaPartes, partesImporte } from '../lib/formato'
 import { IconoAtras, IconoCerrar, IconoChevron, IconoInfo } from './Iconos'
 
 /**
@@ -51,7 +52,7 @@ export function Boton({
 /* ------------------------------------------------------ Títulos y cabecera */
 
 /** Título grande de iOS, el que encabeza una pantalla al empezar a leerla. */
-export function TituloGrande({ children, accion }: { children: ReactNode; accion?: ReactNode }) {
+export function TituloGrande({ children, accion }: Readonly<{ children: ReactNode; accion?: ReactNode }>) {
   return (
     <div className="flex items-end justify-between gap-3 px-1">
       <h1 className="titulo-grande">{children}</h1>
@@ -64,7 +65,7 @@ export function TituloGrande({ children, accion }: { children: ReactNode; accion
  * Botón de volver con chevron, como la barra de navegación de iOS. Dice a
  * dónde vuelve, no un «atrás» a secas: a Objetivo se llega desde dos sitios.
  */
-export function CabeceraVolver({ destino, onVolver }: { destino: string; onVolver: () => void }) {
+export function CabeceraVolver({ destino, onVolver }: Readonly<{ destino: string; onVolver: () => void }>) {
   return (
     <button
       type="button"
@@ -88,12 +89,12 @@ export function Grupo({
   pie,
   className,
   children,
-}: {
+}: Readonly<{
   titulo?: ReactNode
   pie?: ReactNode
   className?: string
   children: ReactNode
-}) {
+}>) {
   return (
     <section className={className}>
       {titulo && (
@@ -125,7 +126,7 @@ export function FilaLista({
   onClick,
   destructivo,
   sinChevron,
-}: {
+}: Readonly<{
   titulo: ReactNode
   detalle?: ReactNode
   valor?: ReactNode
@@ -134,7 +135,7 @@ export function FilaLista({
   destructivo?: boolean
   /** Para filas pulsables que no navegan a otra pantalla (p. ej. «Añadir…»). */
   sinChevron?: boolean
-}) {
+}>) {
   const contenido = (
     <>
       <span className="min-w-0 flex-1">
@@ -162,12 +163,12 @@ export function Fila({
   importe,
   tono = 'normal',
   accion,
-}: {
+}: Readonly<{
   concepto: ReactNode
   importe: ReactNode
   tono?: 'normal' | 'tenue' | 'fuerte'
   accion?: ReactNode
-}) {
+}>) {
   return (
     <div className="flex items-center justify-between gap-3 py-1.5">
       <span
@@ -197,7 +198,7 @@ export function Fila({
 
 /* --------------------------------------------------------------- Tarjetas */
 
-export function Tarjeta({ children, className }: { children: ReactNode; className?: string }) {
+export function Tarjeta({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
   return (
     <section className={clases('rounded-tarjeta bg-superficie p-4', className)}>{children}</section>
   )
@@ -211,12 +212,12 @@ export function ControlSegmentado<T extends string>({
   valor,
   onCambiar,
   className,
-}: {
+}: Readonly<{
   opciones: { valor: T; etiqueta: string }[]
   valor: T
   onCambiar: (valor: T) => void
   className?: string
-}) {
+}>) {
   return (
     <div className={clases('flex gap-0.5 rounded-fila bg-relleno p-0.5', className)}>
       {opciones.map((o) => {
@@ -241,7 +242,7 @@ export function ControlSegmentado<T extends string>({
 }
 
 const ESTILO_ENTRADA =
-  'w-full rounded-fila border border-borde bg-superficie px-3.5 py-2.5 text-[17px] text-tinta outline-none transition focus:border-acento'
+  'w-full rounded-fila border border-borde bg-superficie px-3.5 py-2.5 text-[17px] text-tinta outline-none transition focus:border-acento disabled:opacity-50'
 
 export function Entrada({
   className,
@@ -262,23 +263,151 @@ export function Entrada({
   )
 }
 
-export function Selector({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+const MAX_DIGITOS_ENTERO = 7 // hasta 9.999.999 €
+
+interface EstadoImporte {
+  entero: string
+  decimales: string
+  enDecimales: boolean
+}
+
+/** ¿Está seleccionado el campo entero? Escribir entonces empieza de cero. */
+function seleccionCompleta(input: HTMLInputElement): boolean {
+  return input.selectionStart === 0 && input.selectionEnd === input.value.length
+}
+
+function conDigito(actual: EstadoImporte, digito: string, nueva: boolean): EstadoImporte {
+  if (nueva) return { entero: digito, decimales: '', enDecimales: false }
+  if (actual.enDecimales) {
+    return actual.decimales.length >= 2 ? actual : { ...actual, decimales: actual.decimales + digito }
+  }
+  return actual.entero.length >= MAX_DIGITOS_ENTERO ? actual : { ...actual, entero: actual.entero + digito }
+}
+
+function conBorrado(actual: EstadoImporte, nueva: boolean): EstadoImporte {
+  if (nueva) return { entero: '', decimales: '', enDecimales: false }
+  if (actual.enDecimales) {
+    return actual.decimales === ''
+      ? { ...actual, enDecimales: false }
+      : { ...actual, decimales: actual.decimales.slice(0, -1) }
+  }
+  return { ...actual, entero: actual.entero.slice(0, -1) }
+}
+
+/** Próximo estado del campo tras una tecla, o `null` si no le corresponde ninguna. */
+function siguienteEstado(actual: EstadoImporte, tecla: string, nueva: boolean): EstadoImporte | null {
+  if (tecla === ',' || tecla === '.') {
+    return { entero: nueva ? '' : actual.entero, decimales: '', enDecimales: true }
+  }
+  if (/^\d$/.test(tecla)) return conDigito(actual, tecla, nueva)
+  if (tecla === 'Backspace' || tecla === 'Delete') return conBorrado(actual, nueva)
+  return null
+}
+
+/**
+ * Campo de importe: la parte entera se escribe normal, de izquierda a
+ * derecha (`2`, `7`, `9` → `279,00 €`, no `2,79 €`), y el € y los dos
+ * decimales se ven desde el primer momento, antes de tocar el campo. Para
+ * corregir los céntimos se pulsa la coma, que entra en un modo aparte: a
+ * partir de ahí las cifras van a los decimales, hasta un máximo de dos. Cada
+ * tecla se intercepta, así que la posición del cursor no decide nada por sí
+ * sola; solo se mueve para que se lea con naturalidad.
+ */
+export function EntradaEuros({
+  valor,
+  onCambiar,
+  error,
+  className,
+  ...props
+}: Readonly<
+  Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'onKeyDown' | 'onPaste' | 'type'> & {
+    valor: string
+    onCambiar: (valor: string) => void
+    error?: boolean
+  }
+>) {
+  const ref = useRef<HTMLInputElement>(null)
+  const [entero, decimales, enDecimales] = partesImporte(valor)
+  const formateado = formateaPartes(entero, decimales)
+
+  // El cursor se queda en las unidades mientras se escribe el entero, y salta
+  // a los céntimos en cuanto se entra en modo decimal.
+  useLayoutEffect(() => {
+    const input = ref.current
+    if (input && document.activeElement === input) {
+      const posicion = enDecimales ? formateado.length : formateado.indexOf(',')
+      input.setSelectionRange(posicion, posicion)
+    }
+  })
+
+  return (
+    <input
+      {...props}
+      ref={ref}
+      type="text"
+      inputMode="decimal"
+      value={`${formateado} €`}
+      aria-invalid={error || undefined}
+      onKeyDown={(e) => {
+        const siguiente = siguienteEstado(
+          { entero, decimales, enDecimales },
+          e.key,
+          seleccionCompleta(e.currentTarget),
+        )
+        if (!siguiente) return
+        e.preventDefault()
+        onCambiar(combinaPartes(siguiente.entero, siguiente.decimales, siguiente.enDecimales))
+      }}
+      onPaste={(e) => {
+        e.preventDefault()
+        const [pE, pD, pC] = partesImporte(e.clipboardData.getData('text'))
+        if (pE || pD) onCambiar(combinaPartes(pE.slice(-MAX_DIGITOS_ENTERO), pD, pC))
+      }}
+      // Red de seguridad ante autocompletar o entrada por IME, que no pasan
+      // por `onKeyDown`: se reinterpretan las cifras que haya quedado.
+      onChange={(e) => {
+        const [e2, d2, c2] = partesImporte(e.target.value)
+        onCambiar(combinaPartes(e2.slice(-MAX_DIGITOS_ENTERO), d2, c2))
+      }}
+      className={clases(
+        ESTILO_ENTRADA,
+        'cifras',
+        error && 'border-negativo focus:border-negativo',
+        className,
+      )}
+    />
+  )
+}
+
+export function Selector({
+  className,
+  ...props
+}: Readonly<SelectHTMLAttributes<HTMLSelectElement>>) {
   return <select {...props} className={clases(ESTILO_ENTRADA, 'appearance-none', className)} />
 }
 
+/**
+ * Etiqueta de un campo. Los obligatorios llevan un `*`; los opcionales no
+ * llevan nada más, ni siquiera un «(opcional)» — la ausencia del asterisco ya
+ * lo dice. `ayuda` es solo para una explicación genuina, no para marcar
+ * opcionalidad.
+ */
 export function Campo({
   etiqueta,
   ayuda,
+  requerido,
   children,
-}: {
+}: Readonly<{
   etiqueta: string
   ayuda?: ReactNode
+  requerido?: boolean
   children: ReactNode
-}) {
+}>) {
   return (
     <label className="flex flex-col gap-1.5">
       <span className="flex items-center gap-1 text-[13px] font-medium uppercase tracking-[0.05em] text-tenue">
         {etiqueta}
+        {requerido && <span className="text-negativo">*</span>}
         {ayuda && <Info>{ayuda}</Info>}
       </span>
       {children}
@@ -293,7 +422,7 @@ export function Campo({
  * configuración. Se abre al pulsar, no al pasar por encima: en móvil no hay
  * hover y ese texto se perdería.
  */
-export function Info({ children }: { children: ReactNode }) {
+export function Info({ children }: Readonly<{ children: ReactNode }>) {
   const [abierto, setAbierto] = useState(false)
 
   return (
@@ -328,13 +457,16 @@ export function Modal({
   abierto,
   onCerrar,
   titulo,
+  subtitulo,
   children,
-}: {
+}: Readonly<{
   abierto: boolean
   onCerrar: () => void
   titulo?: string
+  /** El mes al que se registrará lo que se dé de alta, p. ej. «Agosto 2026». */
+  subtitulo?: string
   children: ReactNode
-}) {
+}>) {
   if (!abierto) return null
 
   return (
@@ -350,13 +482,16 @@ export function Modal({
       >
         <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-sutil" aria-hidden />
         {titulo && (
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="titulo-pantalla">{titulo}</h2>
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="titulo-pantalla">{titulo}</h2>
+              {subtitulo && <p className="mt-0.5 text-[13px] text-tenue">{subtitulo}</p>}
+            </div>
             <button
               type="button"
               aria-label="Cerrar"
               onClick={onCerrar}
-              className="rounded-full bg-relleno p-1.5 text-tenue active:opacity-60"
+              className="shrink-0 rounded-full bg-relleno p-1.5 text-tenue active:opacity-60"
             >
               <IconoCerrar className="h-4 w-4" />
             </button>
@@ -374,11 +509,11 @@ export function Aviso({
   tono = 'info',
   children,
   accion,
-}: {
+}: Readonly<{
   tono?: 'info' | 'error'
   children: ReactNode
   accion?: ReactNode
-}) {
+}>) {
   return (
     <div
       className={clases(
@@ -392,6 +527,6 @@ export function Aviso({
   )
 }
 
-export function Vacio({ children }: { children: ReactNode }) {
+export function Vacio({ children }: Readonly<{ children: ReactNode }>) {
   return <p className="px-4 py-6 text-center text-[15px] text-tenue">{children}</p>
 }

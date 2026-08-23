@@ -13,11 +13,11 @@ export function SelectorRangoMeses({
   desde,
   hasta,
   onCambiar,
-}: {
+}: Readonly<{
   desde: string
   hasta: string
   onCambiar: (desde: string, hasta: string) => void
-}) {
+}>) {
   const [abierto, setAbierto] = useState(false)
   const [anioVisible, setAnioVisible] = useState(partesMes(desde).anio)
   // Durante la selección: null hasta que se toca el primer mes del rango nuevo.
@@ -47,7 +47,9 @@ export function SelectorRangoMeses({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[13px] font-medium uppercase tracking-[0.05em] text-tenue">Rango</span>
+      <span className="text-[13px] font-medium uppercase tracking-[0.05em] text-tenue">
+        Rango<span className="text-negativo">*</span>
+      </span>
 
       <button
         type="button"

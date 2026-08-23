@@ -3,12 +3,18 @@ import { mesActual } from '../lib/fechas'
 import { datosIniciales, nuevoId } from '../lib/esquema'
 import { sellar, vincularEmailPersona } from '../lib/mutaciones'
 import { aplicarTema, temaGuardado, type Tema } from '../lib/tema'
-import type { Datos, MesKey, PersonaId } from '../lib/tipos'
+import type { Datos, MesKey } from '../lib/tipos'
 import type { Usuario } from '../services/auth'
 import { auth, drive } from '../services/backend'
 
 const CLAVE_ARCHIVO = 'acouplelife.fileId'
 const RETARDO_AUTOGUARDADO = 2000
+
+/**
+ * Esperas entre reintentos cuando Drive falla por red. Crecen para no machacar
+ * una conexión que ya va mal; a partir de la última se repite esa.
+ */
+export const ESPERAS_REINTENTO = [5000, 15000, 45000]
 
 export type EstadoApp =
   | 'arrancando'
@@ -49,16 +55,14 @@ interface Estado {
    * modal, montado una sola vez en `App.tsx`.
    */
   modalGasto: { abierto: boolean; editandoId: string | null; tipoInicial: 'puntual' | 'recurrente' }
-  /**
-   * Persona preseleccionada al dar de alta un gasto, transferencia o efectivo,
-   * para no tener que cambiar el desplegable cada vez. Solo afecta al valor
-   * inicial de altas nuevas; editar algo existente sigue respetando a quién
-   * pertenece ya.
-   */
-  personaActiva: PersonaId | null
+  /** Igual que `modalGasto`: solo alta, así que basta con saber si está abierto. */
+  modalTransferencia: boolean
+  modalEfectivo: boolean
   /** Claro u oscuro. Preferencia del dispositivo, no del archivo compartido. */
   tema: Tema
   sinGuardar: boolean
+  /** Fallos de red seguidos al guardar. Marca el escalón de espera del reintento. */
+  fallosSeguidos: number
   error: string | null
 
   arrancar: () => Promise<void>
@@ -86,7 +90,10 @@ interface Estado {
   /** Abre el modal de gasto. Sin opciones: alta de gasto puntual. */
   abrirModalGasto: (opciones?: { editandoId?: string; tipoInicial?: 'puntual' | 'recurrente' }) => void
   cerrarModalGasto: () => void
-  setPersonaActiva: (personaId: PersonaId) => void
+  abrirModalTransferencia: () => void
+  cerrarModalTransferencia: () => void
+  abrirModalEfectivo: () => void
+  cerrarModalEfectivo: () => void
   setTema: (tema: Tema) => void
   limpiarError: () => void
 }
@@ -99,16 +106,34 @@ const MODAL_GASTO_CERRADO = {
 
 let temporizador: ReturnType<typeof setTimeout> | null = null
 
+function cancelarGuardado() {
+  if (temporizador) clearTimeout(temporizador)
+  temporizador = null
+}
+
 function mensaje(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
 export const useStore = create<Estado>((set, get) => {
-  function programarAutoguardado() {
-    if (temporizador) clearTimeout(temporizador)
+  function programarGuardado(espera: number) {
+    cancelarGuardado()
     temporizador = setTimeout(() => {
+      temporizador = null
       void get().guardar()
-    }, RETARDO_AUTOGUARDADO)
+    }, espera)
+  }
+
+  function programarAutoguardado() {
+    programarGuardado(RETARDO_AUTOGUARDADO)
+  }
+
+  /** Espera creciente tras un fallo de red, hasta el último escalón. */
+  function programarReintento() {
+    const fallos = get().fallosSeguidos
+    const i = Math.min(fallos, ESPERAS_REINTENTO.length - 1)
+    set({ fallosSeguidos: fallos + 1 })
+    programarGuardado(ESPERAS_REINTENTO[i] ?? RETARDO_AUTOGUARDADO)
   }
 
   return {
@@ -121,9 +146,11 @@ export const useStore = create<Estado>((set, get) => {
     pestana: 'mes',
     historial: [],
     modalGasto: MODAL_GASTO_CERRADO,
-    personaActiva: null,
+    modalTransferencia: false,
+    modalEfectivo: false,
     tema: temaGuardado(),
     sinGuardar: false,
+    fallosSeguidos: 0,
     error: null,
 
     async arrancar() {
@@ -151,6 +178,7 @@ export const useStore = create<Estado>((set, get) => {
     },
 
     salir() {
+      cancelarGuardado()
       auth.salir()
       localStorage.removeItem(CLAVE_ARCHIVO)
       set({
@@ -160,6 +188,7 @@ export const useStore = create<Estado>((set, get) => {
         version: null,
         datos: null,
         sinGuardar: false,
+        fallosSeguidos: 0,
       })
     },
 
@@ -208,6 +237,10 @@ export const useStore = create<Estado>((set, get) => {
         return
       }
 
+      // Lo que venga de Drive sustituye a lo local: un guardado pendiente ya no
+      // aplica, y en «descartar mis cambios» volvería a subir lo descartado.
+      cancelarGuardado()
+
       try {
         set({ estado: 'cargando', error: null })
         const { datos, archivo } = await drive.descargar(fileId)
@@ -232,24 +265,42 @@ export const useStore = create<Estado>((set, get) => {
 
     async guardar() {
       const { datos, fileId, version, usuario, estado } = get()
-      if (!datos || !fileId || !version || estado === 'guardando') return
+      if (!datos || !fileId || !version) return
 
-      if (temporizador) {
-        clearTimeout(temporizador)
-        temporizador = null
+      // Ya hay una subida en marcha. Volver a intentarlo ahora escribiría con
+      // una `version` que está a punto de quedar obsoleta, así que se reprograma:
+      // salir sin más dejaría este cambio sin guardar hasta la siguiente edición.
+      if (estado === 'guardando') {
+        programarAutoguardado()
+        return
       }
+
+      cancelarGuardado()
 
       const sellados = sellar(datos, usuario?.email ?? '')
       try {
         set({ estado: 'guardando', error: null, datos: sellados })
         const archivo = await drive.guardar(fileId, sellados, version)
-        set({ estado: 'listo', version: archivo.version, sinGuardar: false })
+
+        // Si se editó durante la subida, lo que hay en memoria ya no es lo que
+        // se subió: siguen quedando cambios pendientes, por mucho que Drive
+        // haya respondido que sí.
+        const pendientes = get().datos !== sellados
+        set({
+          estado: 'listo',
+          version: archivo.version,
+          sinGuardar: pendientes,
+          fallosSeguidos: 0,
+        })
+        if (pendientes) programarAutoguardado()
       } catch (error) {
+        // Un conflicto no se reintenta solo: lo resuelve la persona.
         if (error instanceof drive.ConflictoDrive) {
           set({ estado: 'conflicto', error: error.message })
           return
         }
         set({ estado: 'listo', error: mensaje(error) })
+        programarReintento()
       }
     },
 
@@ -309,8 +360,20 @@ export const useStore = create<Estado>((set, get) => {
       set({ modalGasto: MODAL_GASTO_CERRADO })
     },
 
-    setPersonaActiva(personaId) {
-      set({ personaActiva: personaId })
+    abrirModalTransferencia() {
+      set({ modalTransferencia: true })
+    },
+
+    cerrarModalTransferencia() {
+      set({ modalTransferencia: false })
+    },
+
+    abrirModalEfectivo() {
+      set({ modalEfectivo: true })
+    },
+
+    cerrarModalEfectivo() {
+      set({ modalEfectivo: false })
     },
 
     setTema(tema) {
@@ -326,9 +389,7 @@ export const useStore = create<Estado>((set, get) => {
 
 export function vigilarCambiosSinGuardar() {
   window.addEventListener('beforeunload', (evento) => {
-    if (useStore.getState().sinGuardar) {
-      evento.preventDefault()
-      evento.returnValue = ''
-    }
+    // `preventDefault()` basta desde hace años; `returnValue` está obsoleto.
+    if (useStore.getState().sinGuardar) evento.preventDefault()
   })
 }

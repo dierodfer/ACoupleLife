@@ -1,37 +1,36 @@
 import { useState } from 'react'
 import {
+  liquidacionDelMes,
   listaEfectivoDelMes,
   listaGastosDelMes,
   listaRecurrentesDelMes,
   listaTransferenciasDelMes,
   resumenMes,
 } from '../lib/calculo'
-import { etiquetaMes, hoyKey, mesDeFecha, partesMes } from '../lib/fechas'
-import { euros, fechaCorta, leeImporte } from '../lib/formato'
+import { etiquetaMes, partesMes } from '../lib/fechas'
+import { euros, fechaCorta, importeEditable, leeImporte } from '../lib/formato'
 import { nombrePersona } from '../lib/personas'
 import {
-  anadirTransferencia,
   eliminarEfectivo,
   eliminarGasto,
   eliminarTransferencia,
   fijarOverrideRecurrente,
-  guardarEfectivo,
 } from '../lib/mutaciones'
 import type { Datos } from '../lib/tipos'
 import { useStore } from '../store/useStore'
-import { IconoCerrar, IconoDeshacer, IconoLapiz, IconoMas, IconoRepetir } from './Iconos'
+import { IconoCerrar, IconoCheck, IconoDeshacer, IconoLapiz, IconoMas, IconoRepetir } from './Iconos'
 import { SelectorMes } from './SelectorMes'
-import { SelectorRangoMeses } from './SelectorRangoMeses'
-import { Boton, Campo, Entrada, Fila, FilaLista, Grupo, Tarjeta, Vacio } from './ui'
+import { Boton, EntradaEuros, Fila, FilaLista, Grupo, Tarjeta } from './ui'
 
 /**
  * Pantalla principal. Responde a la única pregunta que importa: cuánto tiene que
  * transferir cada uno este mes.
  */
-export function ResumenMensual({ datos }: { datos: Datos }) {
+export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
   const abrirPestana = useStore((s) => s.abrirPestana)
   const resumen = resumenMes(datos, mes)
+  const liquidacion = liquidacionDelMes(datos, mes)
 
   return (
     <div className="flex flex-col gap-6">
@@ -64,8 +63,23 @@ export function ResumenMensual({ datos }: { datos: Datos }) {
         </div>
       </Tarjeta>
 
-      {resumen.porPersona.map((persona) => (
-        <Grupo key={persona.personaId} titulo={nombrePersona(datos, persona.personaId)}>
+      {resumen.porPersona.map((persona) => {
+        const alDia = liquidacion.find((l) => l.personaId === persona.personaId)?.alDia ?? false
+        return (
+        <Grupo
+          key={persona.personaId}
+          titulo={
+            <span className="flex items-center gap-1.5">
+              {nombrePersona(datos, persona.personaId)}
+              {alDia && (
+                <span className="inline-flex items-center gap-0.5 text-positivo">
+                  <IconoCheck className="h-3.5 w-3.5" />
+                  al día
+                </span>
+              )}
+            </span>
+          }
+        >
           <FilaLista
             titulo="Objetivo"
             valor={euros(persona.objetivo)}
@@ -93,17 +107,19 @@ export function ResumenMensual({ datos }: { datos: Datos }) {
             }
           />
         </Grupo>
-      ))}
+        )
+      })}
 
       <Movimientos datos={datos} />
     </div>
   )
 }
 
-function Movimientos({ datos }: { datos: Datos }) {
+function Movimientos({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
   const aplicar = useStore((s) => s.aplicar)
   const abrirModalGasto = useStore((s) => s.abrirModalGasto)
+  const abrirModalTransferencia = useStore((s) => s.abrirModalTransferencia)
   const { anio } = partesMes(mes)
 
   const gastos = listaGastosDelMes(datos, mes)
@@ -112,13 +128,28 @@ function Movimientos({ datos }: { datos: Datos }) {
 
   return (
     <>
-      <Grupo titulo="Gastos del mes">
+      <Grupo
+        titulo="Gastos del mes"
+        pie={
+          recurrentes.length > 0
+            ? 'El icono ↻ abre la edición completa de un recurrente; el lápiz solo ajusta este mes.'
+            : undefined
+        }
+      >
         {recurrentes.map(({ recurrente, importe }) => (
           <FilaLista
             key={recurrente.id}
             titulo={
               <span className="flex items-center gap-1.5">
-                <IconoRepetir className="h-4 w-4 shrink-0 text-sutil" />
+                <button
+                  type="button"
+                  title="Editar el recurrente"
+                  aria-label={`Editar ${recurrente.concepto || 'recurrente'}`}
+                  onClick={() => abrirModalGasto({ editandoId: recurrente.id })}
+                  className="shrink-0 text-sutil transition active:text-acento"
+                >
+                  <IconoRepetir className="h-4 w-4" />
+                </button>
                 {recurrente.concepto || 'Recurrente'}
               </span>
             }
@@ -183,7 +214,16 @@ function Movimientos({ datos }: { datos: Datos }) {
           />
         ))}
 
-        <FormularioTransferencia datos={datos} />
+        <FilaLista
+          titulo={
+            <span className="flex items-center gap-2 text-acento">
+              <IconoMas className="h-5 w-5" />
+              Registrar transferencia
+            </span>
+          }
+          onClick={() => abrirModalTransferencia()}
+          sinChevron
+        />
       </Grupo>
     </>
   )
@@ -194,31 +234,12 @@ function Movimientos({ datos }: { datos: Datos }) {
  * gestiona desde aquí porque es una aportación más del mes, igual que los
  * gastos y las transferencias.
  */
-function Efectivos({ datos }: { datos: Datos }) {
+function Efectivos({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
   const aplicar = useStore((s) => s.aplicar)
-  const personaActiva = useStore((s) => s.personaActiva)
-  const [abierto, setAbierto] = useState(false)
-  const [importe, setImporte] = useState('')
-  const [errorImporte, setErrorImporte] = useState(false)
-  const [desde, setDesde] = useState(mes)
-  const [hasta, setHasta] = useState('')
+  const abrirModalEfectivo = useStore((s) => s.abrirModalEfectivo)
 
   const vigentes = listaEfectivoDelMes(datos, mes)
-
-  const guardar = () => {
-    const cantidad = leeImporte(importe)
-    if (cantidad <= 0) {
-      setErrorImporte(true)
-      return
-    }
-    const personaId = personaActiva ?? datos.personas[0]?.id ?? ''
-    aplicar((d) => guardarEfectivo(d, { personaId, importe: cantidad, desde, hasta: hasta || null }))
-    setImporte('')
-    setErrorImporte(false)
-    setHasta('')
-    setAbierto(false)
-  }
 
   return (
     <Grupo titulo="Efectivo del mes" pie="Se aporta automáticamente cada mes dentro de su rango.">
@@ -238,72 +259,22 @@ function Efectivos({ datos }: { datos: Datos }) {
           }
         />
       ))}
-      {vigentes.length === 0 && !abierto && <Vacio>Nadie aporta efectivo este mes.</Vacio>}
 
-      {abierto ? (
-        <form
-          className="flex flex-col gap-4 border-t border-borde p-4 first:border-t-0"
-          onSubmit={(e) => {
-            e.preventDefault()
-            guardar()
-          }}
-        >
-          <Campo etiqueta="Importe">
-            <Entrada
-              type="text"
-              inputMode="decimal"
-              value={importe}
-              error={errorImporte}
-              autoFocus
-              placeholder="0,00"
-              onChange={(e) => {
-                setImporte(e.target.value)
-                setErrorImporte(false)
-              }}
-            />
-          </Campo>
-
-          <SelectorRangoMeses
-            desde={desde}
-            hasta={hasta}
-            onCambiar={(nuevoDesde, nuevoHasta) => {
-              setDesde(nuevoDesde)
-              setHasta(nuevoHasta)
-            }}
-          />
-
-          <div className="flex gap-2">
-            <Boton type="submit" variante="principal" className="flex-1">
-              Guardar
-            </Boton>
-            <Boton
-              type="button"
-              onClick={() => {
-                setAbierto(false)
-                setErrorImporte(false)
-              }}
-            >
-              Cancelar
-            </Boton>
-          </div>
-        </form>
-      ) : (
-        <FilaLista
-          titulo={
-            <span className="flex items-center gap-2 text-acento">
-              <IconoMas className="h-5 w-5" />
-              Añadir efectivo
-            </span>
-          }
-          onClick={() => setAbierto(true)}
-          sinChevron
-        />
-      )}
+      <FilaLista
+        titulo={
+          <span className="flex items-center gap-2 text-acento">
+            <IconoMas className="h-5 w-5" />
+            Añadir efectivo
+          </span>
+        }
+        onClick={() => abrirModalEfectivo()}
+        sinChevron
+      />
     </Grupo>
   )
 }
 
-function BotonBorrar({ etiqueta, onBorrar }: { etiqueta: string; onBorrar: () => void }) {
+function BotonBorrar({ etiqueta, onBorrar }: Readonly<{ etiqueta: string; onBorrar: () => void }>) {
   return (
     <button
       type="button"
@@ -323,14 +294,14 @@ function BotonBorrar({ etiqueta, onBorrar }: { etiqueta: string; onBorrar: () =>
 function AjusteRecurrente({
   recurrenteId,
   importeActual,
-}: {
+}: Readonly<{
   recurrenteId: string
   importeActual: number
-}) {
+}>) {
   const mes = useStore((s) => s.mes)
   const aplicar = useStore((s) => s.aplicar)
   const [editando, setEditando] = useState(false)
-  const [valor, setValor] = useState(String(importeActual))
+  const [valor, setValor] = useState(importeEditable(importeActual))
 
   if (!editando) {
     return (
@@ -338,7 +309,7 @@ function AjusteRecurrente({
         type="button"
         aria-label="Ajustar este mes"
         onClick={() => {
-          setValor(String(importeActual))
+          setValor(importeEditable(importeActual))
           setEditando(true)
         }}
         className="rounded-full p-1 text-sutil transition active:text-acento"
@@ -350,14 +321,12 @@ function AjusteRecurrente({
 
   return (
     <span className="flex items-center gap-1">
-      <Entrada
-        type="text"
-        inputMode="decimal"
-        value={valor}
+      <EntradaEuros
+        valor={valor}
         autoFocus
         aria-label="Importe solo para este mes"
-        className="w-24 px-2 py-1 text-right text-[15px]"
-        onChange={(e) => setValor(e.target.value)}
+        className="w-28 px-2 py-1 text-right text-[15px]"
+        onCambiar={setValor}
       />
       <Boton
         variante="texto"
@@ -382,86 +351,5 @@ function AjusteRecurrente({
         <IconoDeshacer className="h-4 w-4" />
       </button>
     </span>
-  )
-}
-
-function FormularioTransferencia({ datos }: { datos: Datos }) {
-  const mes = useStore((s) => s.mes)
-  const aplicar = useStore((s) => s.aplicar)
-  const personaActiva = useStore((s) => s.personaActiva)
-  const [abierto, setAbierto] = useState(false)
-  const [importe, setImporte] = useState('')
-  const [errorImporte, setErrorImporte] = useState(false)
-
-  if (!abierto) {
-    return (
-      <FilaLista
-        titulo={
-          <span className="flex items-center gap-2 text-acento">
-            <IconoMas className="h-5 w-5" />
-            Registrar transferencia
-          </span>
-        }
-        onClick={() => setAbierto(true)}
-        sinChevron
-      />
-    )
-  }
-
-  const guardar = () => {
-    const cantidad = leeImporte(importe)
-    if (cantidad <= 0) {
-      setErrorImporte(true)
-      return
-    }
-
-    const personaId = personaActiva ?? datos.personas[0]?.id ?? ''
-    // Hoy si es el mes en curso; si no, el día 1, para no archivarla fuera del mes visto.
-    const fecha = mesDeFecha(hoyKey()) === mes ? hoyKey() : `${mes}-01`
-    aplicar((d) => anadirTransferencia(d, { personaId, importe: cantidad, fecha }))
-
-    setImporte('')
-    setErrorImporte(false)
-    setAbierto(false)
-  }
-
-  return (
-    <form
-      className="flex flex-col gap-3 border-t border-borde p-4 first:border-t-0"
-      onSubmit={(e) => {
-        e.preventDefault()
-        guardar()
-      }}
-    >
-      <Campo etiqueta="Importe">
-        <Entrada
-          type="text"
-          inputMode="decimal"
-          value={importe}
-          error={errorImporte}
-          autoFocus
-          placeholder="0,00"
-          onChange={(e) => {
-            setImporte(e.target.value)
-            setErrorImporte(false)
-          }}
-        />
-      </Campo>
-
-      <div className="flex gap-2">
-        <Boton type="submit" variante="principal" className="flex-1">
-          Guardar
-        </Boton>
-        <Boton
-          type="button"
-          onClick={() => {
-            setAbierto(false)
-            setErrorImporte(false)
-          }}
-        >
-          Cancelar
-        </Boton>
-      </div>
-    </form>
   )
 }

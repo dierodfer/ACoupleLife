@@ -12,18 +12,21 @@ export interface EstadoMes {
   enRango?: boolean
   /** El mes real en el que estamos: aro de acento. */
   hoy?: boolean
-  /** Tiene movimientos registrados: punto bajo el nombre. */
-  marcado?: boolean
+  /**
+   * Un punto por persona bajo el nombre del mes: relleno si ya cubrió su
+   * objetivo ese mes, hueco si le queda algo por transferir.
+   */
+  marcas?: { id: string; alDia: boolean }[]
 }
 
 /** Cabecera «← año →», compartida por todas las pantallas con navegación anual. */
 export function NavegadorAnio({
   anio,
   onCambiar,
-}: {
+}: Readonly<{
   anio: number
   onCambiar: (anio: number) => void
-}) {
+}>) {
   return (
     <div className="flex items-center justify-between">
       <button
@@ -47,6 +50,20 @@ export function NavegadorAnio({
   )
 }
 
+/** Prioridad de los estados de una celda: seleccionado gana a todo lo demás. */
+function estiloCelda({ seleccionado, enRango, hoy }: EstadoMes): string {
+  if (seleccionado) return 'bg-acento font-semibold text-white'
+  if (enRango) return 'bg-acento/12 text-acento'
+  if (hoy) return 'font-semibold text-acento'
+  return 'text-tinta active:bg-relleno'
+}
+
+/** Punto de liquidación: relleno si está al día, hueco si le falta transferir. */
+function estiloMarca(alDia: boolean, seleccionado?: boolean): string {
+  if (alDia) return seleccionado ? 'border-white bg-white' : 'border-positivo bg-positivo'
+  return seleccionado ? 'border-white/70' : 'border-sutil'
+}
+
 /**
  * Rejilla de los doce meses de un año. La usan el selector de mes de la
  * pantalla principal y el de rango de los gastos recurrentes; cada uno decide
@@ -56,16 +73,16 @@ export function RejillaMeses({
   anio,
   estadoDe,
   onTocarMes,
-}: {
+}: Readonly<{
   anio: number
   estadoDe: (mes: MesKey) => EstadoMes
   onTocarMes: (mes: MesKey) => void
-}) {
+}>) {
   return (
     <div className="grid grid-cols-4 gap-1.5">
       {ABREVIADOS.map((abreviado, i) => {
         const clave = mesKey(anio, i + 1)
-        const { seleccionado, enRango, hoy, marcado } = estadoDe(clave)
+        const { seleccionado, enRango, hoy, marcas } = estadoDe(clave)
 
         return (
           <button
@@ -73,25 +90,23 @@ export function RejillaMeses({
             type="button"
             aria-current={seleccionado ? 'true' : undefined}
             onClick={() => onTocarMes(clave)}
-            className={[
-              'relative rounded-fila py-2.5 text-[15px] transition',
-              seleccionado
-                ? 'bg-acento font-semibold text-white'
-                : enRango
-                  ? 'bg-acento/12 text-acento'
-                  : hoy
-                    ? 'font-semibold text-acento'
-                    : 'text-tinta active:bg-relleno',
-            ].join(' ')}
+            className={`relative rounded-fila text-[15px] transition ${
+              marcas?.length ? 'pb-3.5 pt-2.5' : 'py-2.5'
+            } ${estiloCelda({ seleccionado, enRango, hoy })}`}
           >
             {abreviado}
-            {marcado && (
+            {marcas && marcas.length > 0 && (
               <span
                 aria-hidden
-                className={`absolute inset-x-0 bottom-1.5 mx-auto h-1 w-1 rounded-full ${
-                  seleccionado ? 'bg-white' : 'bg-acento'
-                }`}
-              />
+                className="absolute inset-x-0 bottom-1.5 flex justify-center gap-1"
+              >
+                {marcas.map((m) => (
+                  <span
+                    key={m.id}
+                    className={`h-1.5 w-1.5 rounded-full border ${estiloMarca(m.alDia, seleccionado)}`}
+                  />
+                ))}
+              </span>
             )}
           </button>
         )

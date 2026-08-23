@@ -3,11 +3,14 @@ import type { Anio, Datos, Persona } from './tipos'
 
 export const VERSION_ESQUEMA = 1
 
+/**
+ * `crypto.getRandomValues` en vez de `randomUUID`: este último solo existe en
+ * contexto seguro, y la app se abre también por IP desde el móvil (`vite dev
+ * --host`), donde no lo hay.
+ */
 export function nuevoId(prefijo: string): string {
-  const aleatorio =
-    typeof crypto !== 'undefined' && 'randomUUID' in crypto
-      ? crypto.randomUUID().slice(0, 8)
-      : Math.random().toString(36).slice(2, 10)
+  const bytes = crypto.getRandomValues(new Uint8Array(4))
+  const aleatorio = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
   return `${prefijo}_${aleatorio}`
 }
 
@@ -40,113 +43,111 @@ function texto(valor: unknown, porDefecto = ''): string {
   return typeof valor === 'string' ? valor : porDefecto
 }
 
+/** Cualquier cosa del JSON vista como objeto indexable, sin dar nada por hecho. */
+function objeto(valor: unknown): Record<string, unknown> {
+  return valor && typeof valor === 'object' ? (valor as Record<string, unknown>) : {}
+}
+
+/** Aplica `fn` a cada elemento si es un array; si no, devuelve lista vacía. */
+function lista<T>(valor: unknown, fn: (elemento: Record<string, unknown>, i: number) => T): T[] {
+  return Array.isArray(valor) ? valor.map((elemento, i) => fn(objeto(elemento), i)) : []
+}
+
+/** Mapa `clave -> importe` (overrides de recurrentes, excepciones de objetivo). */
+function importes(valor: unknown): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(objeto(valor)).map(([clave, importe]) => [clave, numero(importe)]),
+  )
+}
+
+/** `hasta` es opcional en todo el esquema: ausente significa «sin fin». */
+function finRango(valor: unknown): string | null {
+  return typeof valor === 'string' ? valor : null
+}
+
+function inicioPorDefecto(): string {
+  return mesKey(new Date().getFullYear(), 1)
+}
+
+function normalizarPersonas(valor: unknown): Persona[] {
+  return lista(valor, (o, i) => ({
+    id: texto(o.id, `p${i + 1}`),
+    nombre: texto(o.nombre, `Persona ${i + 1}`),
+    email: texto(o.email),
+  }))
+}
+
+function normalizarRecurrentes(valor: unknown): Datos['recurrentes'] {
+  return lista(valor, (o, i) => ({
+    id: texto(o.id, `r${i + 1}`),
+    personaId: texto(o.personaId),
+    concepto: texto(o.concepto),
+    importe: numero(o.importe),
+    desde: texto(o.desde, inicioPorDefecto()),
+    hasta: finRango(o.hasta),
+    overrides: importes(o.overrides),
+  }))
+}
+
+function normalizarEfectivo(valor: unknown): Datos['efectivo'] {
+  return lista(valor, (o, i) => ({
+    id: texto(o.id, `e${i + 1}`),
+    personaId: texto(o.personaId),
+    importe: numero(o.importe),
+    desde: texto(o.desde, inicioPorDefecto()),
+    hasta: finRango(o.hasta),
+  }))
+}
+
+function normalizarAnio(valor: unknown, clave: string): Anio {
+  const a = objeto(valor)
+
+  const objetivos: Anio['objetivos'] = {}
+  for (const [personaId, obj] of Object.entries(objeto(a.objetivos))) {
+    const o = objeto(obj)
+    objetivos[personaId] = {
+      importeMensual: numero(o.importeMensual),
+      excepciones: importes(o.excepciones),
+    }
+  }
+
+  return {
+    objetivos,
+    gastos: lista(a.gastos, (o, i) => ({
+      id: texto(o.id, `g${i + 1}`),
+      personaId: texto(o.personaId),
+      importe: numero(o.importe),
+      fecha: texto(o.fecha, `${clave}-01-01`),
+      concepto: texto(o.concepto),
+    })),
+    transferencias: lista(a.transferencias, (o, i) => ({
+      id: texto(o.id, `t${i + 1}`),
+      personaId: texto(o.personaId),
+      importe: numero(o.importe),
+      fecha: texto(o.fecha, `${clave}-01-01`),
+    })),
+  }
+}
+
 /**
  * Normaliza lo que venga del archivo de Drive: es editable a mano y puede venir
  * de una versión anterior del esquema, así que nada se da por hecho.
  */
 export function normalizar(bruto: unknown): Datos {
-  const d = (bruto ?? {}) as Record<string, unknown>
-
-  const personas: Persona[] = Array.isArray(d.personas)
-    ? d.personas.map((p, i) => {
-        const o = (p ?? {}) as Record<string, unknown>
-        return {
-          id: texto(o.id, `p${i + 1}`),
-          nombre: texto(o.nombre, `Persona ${i + 1}`),
-          email: texto(o.email),
-        }
-      })
-    : []
-
-  const recurrentes = Array.isArray(d.recurrentes)
-    ? d.recurrentes.map((r, i) => {
-        const o = (r ?? {}) as Record<string, unknown>
-        const overrides: Record<string, number> = {}
-        if (o.overrides && typeof o.overrides === 'object') {
-          for (const [mes, importe] of Object.entries(o.overrides as object)) {
-            overrides[mes] = numero(importe)
-          }
-        }
-        return {
-          id: texto(o.id, `r${i + 1}`),
-          personaId: texto(o.personaId),
-          concepto: texto(o.concepto),
-          importe: numero(o.importe),
-          desde: texto(o.desde, mesKey(new Date().getFullYear(), 1)),
-          hasta: typeof o.hasta === 'string' ? o.hasta : null,
-          overrides,
-        }
-      })
-    : []
-
-  const efectivo = Array.isArray(d.efectivo)
-    ? d.efectivo.map((e, i) => {
-        const o = (e ?? {}) as Record<string, unknown>
-        return {
-          id: texto(o.id, `e${i + 1}`),
-          personaId: texto(o.personaId),
-          importe: numero(o.importe),
-          desde: texto(o.desde, mesKey(new Date().getFullYear(), 1)),
-          hasta: typeof o.hasta === 'string' ? o.hasta : null,
-        }
-      })
-    : []
+  const d = objeto(bruto)
 
   const anios: Record<string, Anio> = {}
-  if (d.anios && typeof d.anios === 'object') {
-    for (const [clave, valor] of Object.entries(d.anios as object)) {
-      const a = (valor ?? {}) as Record<string, unknown>
-
-      const objetivos: Anio['objetivos'] = {}
-      if (a.objetivos && typeof a.objetivos === 'object') {
-        for (const [personaId, obj] of Object.entries(a.objetivos as object)) {
-          const o = (obj ?? {}) as Record<string, unknown>
-          const excepciones: Record<string, number> = {}
-          if (o.excepciones && typeof o.excepciones === 'object') {
-            for (const [mes, importe] of Object.entries(o.excepciones as object)) {
-              excepciones[mes] = numero(importe)
-            }
-          }
-          objetivos[personaId] = { importeMensual: numero(o.importeMensual), excepciones }
-        }
-      }
-
-      anios[clave] = {
-        objetivos,
-        gastos: Array.isArray(a.gastos)
-          ? a.gastos.map((g, i) => {
-              const o = (g ?? {}) as Record<string, unknown>
-              return {
-                id: texto(o.id, `g${i + 1}`),
-                personaId: texto(o.personaId),
-                importe: numero(o.importe),
-                fecha: texto(o.fecha, `${clave}-01-01`),
-                concepto: texto(o.concepto),
-              }
-            })
-          : [],
-        transferencias: Array.isArray(a.transferencias)
-          ? a.transferencias.map((t, i) => {
-              const o = (t ?? {}) as Record<string, unknown>
-              return {
-                id: texto(o.id, `t${i + 1}`),
-                personaId: texto(o.personaId),
-                importe: numero(o.importe),
-                fecha: texto(o.fecha, `${clave}-01-01`),
-              }
-            })
-          : [],
-      }
-    }
+  for (const [clave, valor] of Object.entries(objeto(d.anios))) {
+    anios[clave] = normalizarAnio(valor, clave)
   }
 
   return {
     version: numero(d.version, VERSION_ESQUEMA),
     actualizadoEn: texto(d.actualizadoEn, new Date().toISOString()),
     actualizadoPor: texto(d.actualizadoPor),
-    personas,
-    recurrentes,
-    efectivo,
+    personas: normalizarPersonas(d.personas),
+    recurrentes: normalizarRecurrentes(d.recurrentes),
+    efectivo: normalizarEfectivo(d.efectivo),
     anios,
   }
 }

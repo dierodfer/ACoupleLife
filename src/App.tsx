@@ -1,15 +1,19 @@
 import { useEffect } from 'react'
 import { Ajustes } from './componentes/Ajustes'
 import { IconoAjustes, IconoAnio, IconoMes, IconoRecargar } from './componentes/Iconos'
+import { IndicadorPersona } from './componentes/IndicadorPersona'
+import { ModalEfectivo } from './componentes/ModalEfectivo'
 import { ModalGasto } from './componentes/ModalGasto'
+import { ModalTransferencia } from './componentes/ModalTransferencia'
 import { PantallaAcceso } from './componentes/PantallaAcceso'
 import { PantallaObjetivos } from './componentes/PantallaObjetivos'
 import { ResumenAnual } from './componentes/ResumenAnual'
 import { ResumenMensual } from './componentes/ResumenMensual'
-import { SelectorPersonaActiva } from './componentes/SelectorPersonaActiva'
 import { Aviso, Boton } from './componentes/ui'
 import { haceCuanto } from './lib/formato'
-import { useStore, type Pestana } from './store/useStore'
+import type { Datos } from './lib/tipos'
+import type { Usuario } from './services/auth'
+import { useStore, type EstadoApp, type Pestana } from './store/useStore'
 
 const PESTANAS: { clave: Pestana; titulo: string; Icono: typeof IconoMes }[] = [
   { clave: 'mes', titulo: 'Mes', Icono: IconoMes },
@@ -24,6 +28,8 @@ export function App() {
   const pestana = useStore((s) => s.pestana)
   const setPestana = useStore((s) => s.irAPestana)
   const modalGasto = useStore((s) => s.modalGasto)
+  const modalTransferencia = useStore((s) => s.modalTransferencia)
+  const modalEfectivo = useStore((s) => s.modalEfectivo)
 
   useEffect(() => {
     void arrancar()
@@ -40,7 +46,7 @@ export function App() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-4 px-4 pb-28 pt-3">
       <BarraEstado />
-      <SelectorPersonaActiva datos={datos} />
+      <IndicadorPersona datos={datos} />
 
       {pestana === 'mes' && <ResumenMensual datos={datos} />}
       {pestana === 'anio' && <ResumenAnual datos={datos} />}
@@ -74,8 +80,35 @@ export function App() {
         key={`${modalGasto.abierto}|${modalGasto.editandoId ?? 'nuevo'}`}
         datos={datos}
       />
+      <ModalTransferencia key={String(modalTransferencia)} datos={datos} />
+      <ModalEfectivo key={String(modalEfectivo)} datos={datos} />
     </div>
   )
+}
+
+/**
+ * Rótulo de la barra de estado. Cuando lo último guardado es de la otra
+ * persona se dice quién fue: en un archivo a dos manos, importa.
+ */
+function textoGuardado(
+  estado: EstadoApp,
+  sinGuardar: boolean,
+  datos: Datos | null,
+  usuario: Usuario | null,
+): string {
+  if (estado === 'guardando') return 'Guardando…'
+  if (estado === 'cargando') return 'Cargando…'
+  if (sinGuardar) return 'Cambios sin guardar'
+  if (!datos?.actualizadoEn) return 'Todo guardado'
+
+  const ajena =
+    datos.actualizadoPor && datos.actualizadoPor !== usuario?.email
+      ? (datos.personas.find((p) => p.email === datos.actualizadoPor)?.nombre ??
+        datos.actualizadoPor)
+      : null
+
+  const cuando = haceCuanto(datos.actualizadoEn)
+  return ajena ? `Guardado ${cuando} · ${ajena}` : `Guardado ${cuando}`
 }
 
 /** Estado del guardado en Drive, incluida la resolución de conflictos. */
@@ -108,29 +141,12 @@ function BarraEstado() {
     )
   }
 
-  // Quién guardó por última vez, si no has sido tú.
-  const otraPersona =
-    datos?.actualizadoPor && datos.actualizadoPor !== usuario?.email
-      ? (datos.personas.find((p) => p.email === datos.actualizadoPor)?.nombre ??
-        datos.actualizadoPor)
-      : null
-
   const ocupado = estado === 'guardando' || estado === 'cargando'
 
   return (
     <header className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2 text-[13px] text-tenue">
-        <span className="min-w-0 truncate">
-          {estado === 'guardando'
-            ? 'Guardando…'
-            : estado === 'cargando'
-              ? 'Cargando…'
-              : sinGuardar
-                ? 'Cambios sin guardar'
-                : datos?.actualizadoEn
-                  ? `Guardado ${haceCuanto(datos.actualizadoEn)}${otraPersona ? ` · ${otraPersona}` : ''}`
-                  : 'Todo guardado'}
-        </span>
+        <span className="min-w-0 truncate">{textoGuardado(estado, sinGuardar, datos, usuario)}</span>
 
         <span className="flex shrink-0 items-center gap-1">
           {sinGuardar && !ocupado && (

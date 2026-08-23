@@ -41,7 +41,9 @@ export function anioDeFecha(fecha: FechaKey): string {
  * comparación lexicográfica ya es cronológica.
  */
 export function comparaMes(a: MesKey, b: MesKey): number {
-  return a < b ? -1 : a > b ? 1 : 0
+  if (a < b) return -1
+  if (a > b) return 1
+  return 0
 }
 
 /** ¿`mes` cae dentro de `[desde, hasta]`? `hasta: null` = sin fin definido. */

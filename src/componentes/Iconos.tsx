@@ -4,9 +4,9 @@
  * fuente de iconos entera por media docena de glifos.
  */
 
-type Props = { className?: string }
+type Props = Readonly<{ className?: string }>
 
-function Svg({ className, children }: Props & { children: React.ReactNode }) {
+function Svg({ className, children }: Props & Readonly<{ children: React.ReactNode }>) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -107,6 +107,14 @@ export function IconoRepetir(props: Props) {
       <path d="M16 2.5L19.5 5 16 7.5" />
       <path d="M20 14.5A4.5 4.5 0 0 1 15.5 19H5" />
       <path d="M8 16.5L4.5 19 8 21.5" />
+    </Svg>
+  )
+}
+
+export function IconoCheck(props: Props) {
+  return (
+    <Svg {...props}>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
     </Svg>
   )
 }

@@ -1,39 +1,25 @@
 import { useState } from 'react'
-import { etiquetaMes, partesMes } from '../lib/fechas'
+import { partesMes } from '../lib/fechas'
 import { euros } from '../lib/formato'
 import { renombrarPersona } from '../lib/mutaciones'
-import { nombrePersona } from '../lib/personas'
 import type { Datos } from '../lib/tipos'
 import { drive } from '../services/backend'
-import { ETIQUETAS_PESTANA, useStore } from '../store/useStore'
-import { IconoLapiz, IconoMas, IconoRepetir } from './Iconos'
-import {
-  Aviso,
-  Boton,
-  CabeceraVolver,
-  Campo,
-  ControlSegmentado,
-  Entrada,
-  FilaLista,
-  Grupo,
-  TituloGrande,
-  Vacio,
-} from './ui'
+import { useStore } from '../store/useStore'
+import { Aviso, Boton, Campo, ControlSegmentado, Entrada, FilaLista, Grupo, TituloGrande } from './ui'
 
-export function Ajustes({ datos }: { datos: Datos }) {
-  const volver = useStore((s) => s.volver)
-  const destino = useStore((s) => s.historial[s.historial.length - 1] ?? 'mes')
+/** `2 meses ajustados`, o `undefined` si no hay ninguno (para no pintar el detalle). */
+function pluralMeses(cuantos: number, singular: string, plural: string): string | undefined {
+  if (cuantos === 0) return undefined
+  return `${cuantos} ${cuantos === 1 ? singular : plural}`
+}
 
+export function Ajustes({ datos }: Readonly<{ datos: Datos }>) {
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <CabeceraVolver destino={ETIQUETAS_PESTANA[destino]} onVolver={volver} />
-        <TituloGrande>Ajustes</TituloGrande>
-      </div>
+      <TituloGrande>Ajustes</TituloGrande>
 
-      <Personas datos={datos} />
+      <Personas key={datos.personas.map((p) => p.nombre).join('|')} datos={datos} />
       <AccesoObjetivos datos={datos} />
-      <Recurrentes datos={datos} />
       <Compartir datos={datos} />
       <Apariencia />
       <Sesion />
@@ -45,7 +31,7 @@ export function Ajustes({ datos }: { datos: Datos }) {
  * El objetivo tiene pantalla propia: es la configuración más densa de la app
  * (regla anual más excepciones de cada mes) y no cabe como una tarjeta más.
  */
-function AccesoObjetivos({ datos }: { datos: Datos }) {
+function AccesoObjetivos({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
   const abrirPestana = useStore((s) => s.abrirPestana)
   const { anio } = partesMes(mes)
@@ -59,11 +45,7 @@ function AccesoObjetivos({ datos }: { datos: Datos }) {
           <FilaLista
             key={persona.id}
             titulo={persona.nombre}
-            detalle={
-              excepciones > 0
-                ? `${excepciones} ${excepciones === 1 ? 'mes con excepción' : 'meses con excepción'}`
-                : undefined
-            }
+            detalle={pluralMeses(excepciones, 'mes con excepción', 'meses con excepción')}
             valor={`${euros(objetivo?.importeMensual ?? 0)} / mes`}
             onClick={() => abrirPestana('objetivos')}
           />
@@ -77,83 +59,61 @@ function AccesoObjetivos({ datos }: { datos: Datos }) {
   )
 }
 
-function Personas({ datos }: { datos: Datos }) {
+/**
+ * Nombre de cada persona, alineado con su cuenta de Google en dos columnas,
+ * y un único botón de guardar para todo el grupo: cambiar dos nombres no son
+ * dos acciones. El campo de email es de solo lectura a propósito (ver pie).
+ */
+function Personas({ datos }: Readonly<{ datos: Datos }>) {
   const aplicar = useStore((s) => s.aplicar)
+  const [nombres, setNombres] = useState<Record<string, string>>(() =>
+    Object.fromEntries(datos.personas.map((p) => [p.id, p.nombre])),
+  )
+
+  const limpio = (id: string) => (nombres[id] ?? '').trim()
+  const sinCambios = datos.personas.every((p) => limpio(p.id) === p.nombre || limpio(p.id) === '')
+
+  const guardar = () => {
+    aplicar((d) =>
+      datos.personas.reduce((acc, p) => {
+        const nuevo = limpio(p.id)
+        return nuevo && nuevo !== p.nombre ? renombrarPersona(acc, p.id, nuevo) : acc
+      }, d),
+    )
+  }
 
   return (
     <Grupo
       titulo="Personas"
       pie="El nombre puede cambiarse sin afectar al histórico. El email no se escribe a mano: se vincula solo la primera vez que esa persona entra con su cuenta de Google."
     >
-      {datos.personas.map((persona) => (
-        <div key={persona.id} className="flex flex-col gap-3 border-t border-borde p-4 first:border-t-0">
-          <Campo etiqueta="Nombre">
-            <Entrada
-              value={persona.nombre}
-              onChange={(e) => aplicar((d) => renombrarPersona(d, persona.id, e.target.value))}
-            />
-          </Campo>
-          <Campo etiqueta="Cuenta de Google">
-            <p className="truncate rounded-fila bg-relleno px-3.5 py-2.5 text-[15px] text-tenue">
-              {persona.email || 'Sin vincular todavía'}
-            </p>
-          </Campo>
-        </div>
-      ))}
-    </Grupo>
-  )
-}
+      <form
+        className="flex flex-col gap-4 p-4"
+        onSubmit={(e) => {
+          e.preventDefault()
+          guardar()
+        }}
+      >
+        {datos.personas.map((persona) => (
+          <div key={persona.id} className="grid grid-cols-2 gap-3">
+            <Campo etiqueta="Nombre">
+              <Entrada
+                value={nombres[persona.id] ?? persona.nombre}
+                onChange={(e) => setNombres((n) => ({ ...n, [persona.id]: e.target.value }))}
+              />
+            </Campo>
+            <Campo etiqueta="Google">
+              <p className="truncate rounded-fila bg-relleno px-3.5 py-2.5 text-[15px] text-tenue">
+                {persona.email || 'Sin vincular'}
+              </p>
+            </Campo>
+          </div>
+        ))}
 
-function Recurrentes({ datos }: { datos: Datos }) {
-  const abrirModalGasto = useStore((s) => s.abrirModalGasto)
-
-  return (
-    <Grupo
-      titulo="Gastos recurrentes"
-      pie="Se repiten durante un rango de meses y se calculan a partir de él, sin guardarse mes a mes. Para cambiar el importe de un mes suelto, edítalo desde la pantalla de ese mes."
-    >
-      {datos.recurrentes.map((r) => {
-        const ajustes = Object.keys(r.overrides).length
-        return (
-          <FilaLista
-            key={r.id}
-            titulo={
-              <span className="flex items-center gap-1.5">
-                <IconoRepetir className="h-4 w-4 shrink-0 text-sutil" />
-                {r.concepto || 'Recurrente'}
-              </span>
-            }
-            detalle={`${nombrePersona(datos, r.personaId)} · ${etiquetaMes(r.desde)} – ${
-              r.hasta ? etiquetaMes(r.hasta) : 'sin fin'
-            }${ajustes > 0 ? ` · ${ajustes} ajustado${ajustes === 1 ? '' : 's'}` : ''}`}
-            accion={
-              <span className="flex items-center gap-1">
-                <span className="cifras">{euros(r.importe)}</span>
-                <button
-                  type="button"
-                  aria-label={`Editar ${r.concepto || 'recurrente'}`}
-                  onClick={() => abrirModalGasto({ editandoId: r.id })}
-                  className="rounded-full p-1 text-sutil transition active:text-acento"
-                >
-                  <IconoLapiz className="h-4 w-4" />
-                </button>
-              </span>
-            }
-          />
-        )
-      })}
-      {datos.recurrentes.length === 0 && <Vacio>Sin gastos recurrentes.</Vacio>}
-
-      <FilaLista
-        titulo={
-          <span className="flex items-center gap-2 text-acento">
-            <IconoMas className="h-5 w-5" />
-            Añadir recurrente
-          </span>
-        }
-        onClick={() => abrirModalGasto({ tipoInicial: 'recurrente' })}
-        sinChevron
-      />
+        <Boton type="submit" variante="principal" disabled={sinCambios}>
+          Guardar
+        </Boton>
+      </form>
     </Grupo>
   )
 }
@@ -162,7 +122,7 @@ function Recurrentes({ datos }: { datos: Datos }) {
  * Invitar a la otra persona. La app puede dar permisos sobre el archivo que ella
  * misma creó, así que no hace falta pasar por la web de Drive.
  */
-function Compartir({ datos }: { datos: Datos }) {
+function Compartir({ datos }: Readonly<{ datos: Datos }>) {
   const fileId = useStore((s) => s.fileId)
   const usuario = useStore((s) => s.usuario)
   const [email, setEmail] = useState('')

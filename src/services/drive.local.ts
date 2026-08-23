@@ -34,7 +34,7 @@ export interface ArchivoDrive {
 async function leer(): Promise<{ datos: Datos; version: string }> {
   const respuesta = await fetch(RUTA_API)
   if (!respuesta.ok) {
-    const { error } = await respuesta.json().catch(() => ({ error: undefined }))
+    const { error } = (await respuesta.json().catch(() => ({}))) as { error?: string }
     throw new ErrorDrive(error ?? 'No se pudo leer el archivo local.')
   }
   const { datos, version } = (await respuesta.json()) as { datos: unknown; version: string }
@@ -88,6 +88,6 @@ export async function guardar(
 export async function compartirCon(_fileId: string, _email: string): Promise<void> {}
 
 /** Un único archivo local: "elegirlo" es simplemente usarlo, sin selector. */
-export async function elegirArchivo(): Promise<string | null> {
-  return ID_LOCAL
+export function elegirArchivo(): Promise<string | null> {
+  return Promise.resolve(ID_LOCAL)
 }

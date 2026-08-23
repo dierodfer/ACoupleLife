@@ -1,12 +1,26 @@
 import { useState } from 'react'
-import { leeImporte } from '../lib/formato'
+import { etiquetaMes } from '../lib/fechas'
+import { importeEditable, leeImporte } from '../lib/formato'
 import { anadirGasto, eliminarRecurrente, guardarRecurrente } from '../lib/mutaciones'
+import { personaDeUsuario } from '../lib/personas'
 import type { Datos, PersonaId } from '../lib/tipos'
 import { useStore } from '../store/useStore'
 import { SelectorRangoMeses } from './SelectorRangoMeses'
-import { Boton, Campo, ControlSegmentado, Entrada, Grupo, Modal, Selector } from './ui'
+import { Boton, Campo, ControlSegmentado, Entrada, EntradaEuros, Grupo, Modal, Selector } from './ui'
 
 type Tipo = 'puntual' | 'recurrente'
+
+function tituloModal(editando: boolean, tipo: Tipo): string {
+  if (editando) return 'Editar recurrente'
+  return tipo === 'recurrente' ? 'Añadir recurrente' : 'Añadir gasto'
+}
+
+/** `3 meses ajustados manualmente...`, o `undefined` si no hay ninguno. */
+function pieAjustes(editando: boolean, ajustes: number): string | undefined {
+  if (!editando || ajustes === 0) return undefined
+  const meses = ajustes === 1 ? 'mes ajustado' : 'meses ajustados'
+  return `${ajustes} ${meses} manualmente desde la pantalla del mes.`
+}
 
 /**
  * Modal único de alta/edición de gasto, compartido por la pantalla principal
@@ -14,24 +28,28 @@ type Tipo = 'puntual' | 'recurrente'
  * Al ser el mismo componente montado una sola vez en `App.tsx`, se evita
  * duplicar el formulario en dos sitios.
  */
-export function ModalGasto({ datos }: { datos: Datos }) {
+export function ModalGasto({ datos }: Readonly<{ datos: Datos }>) {
+  const mes = useStore((s) => s.mes)
   const modalGasto = useStore((s) => s.modalGasto)
   const cerrarModalGasto = useStore((s) => s.cerrarModalGasto)
+  const [tipo, setTipo] = useState<Tipo>(modalGasto.tipoInicial)
 
   const editando = modalGasto.editandoId
     ? datos.recurrentes.find((r) => r.id === modalGasto.editandoId)
     : undefined
 
+  const titulo = tituloModal(Boolean(editando), tipo)
+  // Un gasto puntual queda archivado en el mes que se está viendo; un
+  // recurrente tiene su propio rango, así que el mes no aplica igual.
+  const subtitulo = !editando && tipo === 'puntual' ? etiquetaMes(mes) : undefined
+
   return (
-    <Modal
-      abierto={modalGasto.abierto}
-      onCerrar={cerrarModalGasto}
-      titulo={editando ? 'Editar recurrente' : 'Añadir gasto'}
-    >
+    <Modal abierto={modalGasto.abierto} onCerrar={cerrarModalGasto} titulo={titulo} subtitulo={subtitulo}>
       <FormularioGasto
         datos={datos}
         editandoId={modalGasto.editandoId}
-        tipoInicial={modalGasto.tipoInicial}
+        tipo={tipo}
+        setTipo={setTipo}
       />
     </Modal>
   )
@@ -40,31 +58,33 @@ export function ModalGasto({ datos }: { datos: Datos }) {
 function FormularioGasto({
   datos,
   editandoId,
-  tipoInicial,
-}: {
+  tipo,
+  setTipo,
+}: Readonly<{
   datos: Datos
   editandoId: string | null
-  tipoInicial: Tipo
-}) {
+  tipo: Tipo
+  setTipo: (tipo: Tipo) => void
+}>) {
   const mes = useStore((s) => s.mes)
   const aplicar = useStore((s) => s.aplicar)
   const cerrarModalGasto = useStore((s) => s.cerrarModalGasto)
-  const personaActiva = useStore((s) => s.personaActiva)
+  const usuario = useStore((s) => s.usuario)
 
   const recurrente = editandoId ? datos.recurrentes.find((r) => r.id === editandoId) : undefined
   const editando = Boolean(recurrente)
 
-  const [tipo, setTipo] = useState<Tipo>(tipoInicial)
   const [personaId, setPersonaId] = useState<PersonaId>(
-    recurrente?.personaId ?? personaActiva ?? datos.personas[0]?.id ?? '',
+    recurrente?.personaId ?? personaDeUsuario(datos, usuario?.email)?.id ?? datos.personas[0]?.id ?? '',
   )
   const [concepto, setConcepto] = useState(recurrente?.concepto ?? '')
-  const [importe, setImporte] = useState(recurrente ? String(recurrente.importe) : '')
+  const [importe, setImporte] = useState(recurrente ? importeEditable(recurrente.importe) : '')
   const [errorImporte, setErrorImporte] = useState(false)
   const [desde, setDesde] = useState(recurrente?.desde ?? mes)
   const [hasta, setHasta] = useState(recurrente?.hasta ?? '')
 
   const ajustes = recurrente ? Object.keys(recurrente.overrides).length : 0
+  const pie = pieAjustes(editando, ajustes)
 
   const guardar = () => {
     const cantidad = leeImporte(importe)
@@ -115,18 +135,10 @@ function FormularioGasto({
         />
       )}
 
-      <Grupo
-        pie={
-          tipo === 'puntual'
-            ? 'Se registra para el mes que estás viendo.'
-            : editando && ajustes > 0
-              ? `${ajustes} ${ajustes === 1 ? 'mes ajustado' : 'meses ajustados'} manualmente desde la pantalla del mes.`
-              : undefined
-        }
-      >
+      <Grupo pie={pie}>
         <div className="flex flex-col gap-4 p-4">
           {editando && (
-            <Campo etiqueta="Persona">
+            <Campo etiqueta="Persona" requerido>
               <Selector value={personaId} onChange={(e) => setPersonaId(e.target.value)}>
                 {datos.personas.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -137,22 +149,19 @@ function FormularioGasto({
             </Campo>
           )}
 
-          <Campo etiqueta="Importe">
-            <Entrada
-              type="text"
-              inputMode="decimal"
-              value={importe}
+          <Campo etiqueta="Importe" requerido>
+            <EntradaEuros
+              valor={importe}
               error={errorImporte}
               autoFocus
-              placeholder="0,00"
-              onChange={(e) => {
-                setImporte(e.target.value)
+              onCambiar={(v) => {
+                setImporte(v)
                 setErrorImporte(false)
               }}
             />
           </Campo>
 
-          <Campo etiqueta="Concepto" ayuda="Opcional">
+          <Campo etiqueta="Concepto">
             <Entrada value={concepto} onChange={(e) => setConcepto(e.target.value)} />
           </Campo>
 
