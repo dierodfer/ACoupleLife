@@ -8,9 +8,10 @@ App web para que una pareja sepa cuánto tiene que transferir cada uno este mes 
 su objetivo de aportación. Sin backend ni base de datos: todos los datos viven en un único
 archivo JSON en el Google Drive de la pareja, y todo el cálculo ocurre en el navegador.
 
-El plan funcional completo (reglas de negocio, esquema de datos, decisiones de diseño) está en
-[`docs/plan.md`](docs/plan.md) — consultarlo antes de cambiar cualquier regla de cálculo o el
-formato del JSON persistido.
+Las reglas de negocio y el esquema de datos no viven en un documento aparte: están en el
+propio código, como comentarios de `src/lib/tipos.ts` (esquema del `Datos` persistido) y
+`src/lib/calculo.ts` (fórmulas y decisiones de diseño). Consultarlos antes de cambiar
+cualquier regla de cálculo o el formato del JSON persistido.
 
 Todo el código, comentarios y UI están en español.
 

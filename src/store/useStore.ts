@@ -26,7 +26,6 @@ export type EstadoApp =
  */
 export type Pestana = 'mes' | 'anio' | 'ajustes' | 'objetivos'
 
-/** Nombre de cada pantalla, para rotular el botón de volver. */
 export const ETIQUETAS_PESTANA: Record<Pestana, string> = {
   mes: 'Mes',
   anio: 'Año',
@@ -68,7 +67,7 @@ interface Estado {
   crearArchivo: () => Promise<void>
   conectarArchivo: () => Promise<void>
   recargar: () => Promise<void>
-  /** Aplica una mutación pura sobre los datos y programa el autoguardado. */
+  /** Programa el autoguardado tras aplicar la mutación. */
   aplicar: (mutacion: (datos: Datos) => Datos) => void
   guardar: () => Promise<void>
   /** Ante un conflicto: traer la versión de Drive descartando los cambios locales. */
@@ -80,9 +79,9 @@ interface Estado {
   irAPestana: (pestana: Pestana) => void
   /** Navegación desde dentro de una pantalla: deja rastro para poder volver. */
   abrirPestana: (pestana: Pestana) => void
-  /** Vuelve a la pantalla desde la que se llegó (al Mes si no hay rastro). */
+  /** Al Mes si no queda rastro en el historial. */
   volver: () => void
-  /** Salta al mes indicado y muestra la pantalla del mes, en un solo paso. */
+  /** Salto atómico a un mes, sin dejar entrada en el historial de pantallas. */
   verMes: (mes: MesKey) => void
   /** Abre el modal de gasto. Sin opciones: alta de gasto puntual. */
   abrirModalGasto: (opciones?: { editandoId?: string; tipoInicial?: 'puntual' | 'recurrente' }) => void
@@ -212,8 +211,7 @@ export const useStore = create<Estado>((set, get) => {
       try {
         set({ estado: 'cargando', error: null })
         const { datos, archivo } = await drive.descargar(fileId)
-        // Primera vez que esta cuenta de Google abre el archivo: se vincula su
-        // email a la primera persona que todavía no tenga uno.
+        // Primera vez que esta cuenta abre el archivo: vincula su email.
         const usuario = get().usuario
         const vinculados = usuario ? vincularEmailPersona(datos, usuario.email) : datos
         set({ estado: 'listo', datos: vinculados, version: archivo.version, sinGuardar: false })
@@ -326,7 +324,6 @@ export const useStore = create<Estado>((set, get) => {
   }
 })
 
-/** Aviso del navegador si se cierra la pestaña con cambios sin subir a Drive. */
 export function vigilarCambiosSinGuardar() {
   window.addEventListener('beforeunload', (evento) => {
     if (useStore.getState().sinGuardar) {

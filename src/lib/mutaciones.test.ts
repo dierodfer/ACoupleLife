@@ -14,8 +14,8 @@ function datos(): Datos {
   return {
     version: 1,
     actualizadoEn: '2026-08-17T10:00:00Z',
-    actualizadoPor: 'diego@gmail.com',
-    personas: [{ id: 'p1', nombre: 'Diego', email: 'diego@gmail.com' }],
+    actualizadoPor: 'persona1@gmail.com',
+    personas: [{ id: 'p1', nombre: 'Persona 1', email: 'persona1@gmail.com' }],
     recurrentes: [],
     efectivo: [],
     anios: {
@@ -147,11 +147,11 @@ describe('normalizar el archivo de Drive', () => {
 
   it('rellena los campos que falten sin perder los que hay', () => {
     const d = normalizar({
-      personas: [{ id: 'p1', nombre: 'Diego' }],
+      personas: [{ id: 'p1', nombre: 'Persona 1' }],
       anios: { '2026': { objetivos: { p1: { importeMensual: 1000 } } } },
     })
 
-    expect(d.personas[0]).toEqual({ id: 'p1', nombre: 'Diego', email: '' })
+    expect(d.personas[0]).toEqual({ id: 'p1', nombre: 'Persona 1', email: '' })
     expect(d.anios['2026']!.gastos).toEqual([])
     expect(d.anios['2026']!.objetivos.p1!.excepciones).toEqual({})
     expect(objetivoDelMes(d, 'p1', '2026-04')).toBe(1000)

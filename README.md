@@ -6,8 +6,6 @@ para llegar a su objetivo de aportación.
 Sin backend y sin base de datos: los datos viven en un único archivo JSON en el Google Drive
 de la pareja, y todo el cálculo ocurre en el navegador.
 
-El plan funcional completo está en [`docs/plan.md`](docs/plan.md).
-
 ## Cómo funciona
 
 Cada persona tiene un objetivo mensual. De ese objetivo se descuentan sus gastos (puntuales y

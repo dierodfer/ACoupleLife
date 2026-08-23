@@ -65,10 +65,7 @@ function cambiarEmailPersona(datos: Datos, personaId: PersonaId, email: string):
 
 /**
  * Vincula el email de la sesión que acaba de entrar a la primera persona sin
- * email todavía (la plaza vacía que deja `datosIniciales` para la segunda
- * persona). El email de cada persona ya no se escribe a mano en Ajustes: se
- * asigna solo la primera vez que esa cuenta de Google abre la aplicación.
- * No hace nada si el email ya pertenece a alguien, o si no queda plaza libre.
+ * email todavía. No hace nada si ya pertenece a alguien o no queda plaza libre.
  */
 export function vincularEmailPersona(datos: Datos, email: string): Datos {
   if (!email || datos.personas.some((p) => p.email === email)) return datos
@@ -213,11 +210,7 @@ export function eliminarRecurrente(datos: Datos, recurrenteId: string): Datos {
   return { ...datos, recurrentes: datos.recurrentes.filter((r) => r.id !== recurrenteId) }
 }
 
-/**
- * Ajusta un recurrente en un mes concreto: importe distinto, o 0 para que ese
- * mes no cuente. Es una sola escritura, así que no hay riesgo de contabilizar
- * dos veces el mismo gasto.
- */
+/** Override de un recurrente para un mes concreto (0 = ese mes no cuenta). */
 export function fijarOverrideRecurrente(
   datos: Datos,
   recurrenteId: string,

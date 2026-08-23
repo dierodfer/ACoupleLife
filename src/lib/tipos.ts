@@ -14,12 +14,9 @@ export interface Persona {
 }
 
 /**
- * Gasto que se repite cada mes dentro de un rango. No se materializa como filas
- * mensuales: se calcula al vuelo a partir del rango y los overrides.
- *
- * `overrides` sustituye al antiguo par "lista de meses excluidos + gasto puntual":
- * un mes excluido es un override a 0 y un mes con importe distinto es un override
- * a ese importe. Así el ajuste es una sola escritura y nunca se contabiliza doble.
+ * Gasto que se repite cada mes dentro de un rango; no se materializa como filas
+ * mensuales, se calcula al vuelo. `overrides` ajusta meses concretos en una sola
+ * escritura: un override a 0 excluye ese mes.
  */
 export interface Recurrente {
   id: string
@@ -43,11 +40,8 @@ export interface Efectivo {
 }
 
 /**
- * Objetivo de aportación de una persona en un año.
- *
- * `importeMensual` es la regla general y `excepciones` la rompe para meses
- * concretos (clave `"1"`..`"12"`). No se persiste ningún flag de "aplicar todo
- * el año": la regla ya aplica a los 12 meses por definición.
+ * Objetivo de aportación de una persona en un año: `importeMensual` es la regla
+ * general y `excepciones` la rompe para meses concretos (clave `"1"`..`"12"`).
  */
 export interface Objetivo {
   importeMensual: number

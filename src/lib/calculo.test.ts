@@ -11,18 +11,18 @@ import type { Datos } from './tipos'
 
 /**
  * Escenario base: el ejemplo de la sección 9 del plan.
- * Diego 1.000 € de objetivo, 400 € de gastos, 100 € de efectivo -> 500 € por transferir.
- * Ana   1.000 € de objetivo, 350 € de gastos,   0 € de efectivo -> 650 € por transferir.
+ * Persona 1: 1.000 € de objetivo, 400 € de gastos, 100 € de efectivo -> 500 € por transferir.
+ * Persona 2: 1.000 € de objetivo, 350 € de gastos,   0 € de efectivo -> 650 € por transferir.
  * Total: 1.150 € por transferir.
  */
 function datosBase(): Datos {
   return {
     version: 1,
     actualizadoEn: '2026-08-17T10:00:00Z',
-    actualizadoPor: 'diego@gmail.com',
+    actualizadoPor: 'persona1@gmail.com',
     personas: [
-      { id: 'p1', nombre: 'Diego', email: 'diego@gmail.com' },
-      { id: 'p2', nombre: 'Ana', email: 'ana@gmail.com' },
+      { id: 'p1', nombre: 'Persona 1', email: 'persona1@gmail.com' },
+      { id: 'p2', nombre: 'Persona 2', email: 'persona2@gmail.com' },
     ],
     recurrentes: [],
     efectivo: [{ id: 'e1', personaId: 'p1', importe: 100, desde: '2026-01', hasta: null }],

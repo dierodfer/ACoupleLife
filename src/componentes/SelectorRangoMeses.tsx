@@ -75,8 +75,7 @@ export function SelectorRangoMeses({
             <RejillaMeses
               anio={anioVisible}
               estadoDe={(clave) => {
-                // Antes de tocar nada se resalta el rango guardado; una vez
-                // elegido el inicio nuevo, solo se resalta ese inicio.
+                // Con el inicio nuevo ya elegido, solo se resalta ese inicio.
                 if (inicioPendiente) return { seleccionado: clave === inicioPendiente }
                 return {
                   seleccionado: clave === desde || clave === hasta,

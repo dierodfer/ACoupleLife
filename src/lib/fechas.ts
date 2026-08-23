@@ -58,7 +58,6 @@ export function sumaMeses(mes: MesKey, n: number): MesKey {
   return mesKey(Math.floor(total / 12), (total % 12) + 1)
 }
 
-/** Los 12 meses de un año, en orden. */
 export function mesesDelAnio(anio: number): MesKey[] {
   return Array.from({ length: 12 }, (_, i) => mesKey(anio, i + 1))
 }

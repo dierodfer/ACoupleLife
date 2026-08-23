@@ -20,10 +20,10 @@ cat > "$archivo" <<JSON
 {
   "version": 1,
   "actualizadoEn": "$ahora",
-  "actualizadoPor": "diego@local.test",
+  "actualizadoPor": "persona1@local.test",
   "personas": [
-    { "id": "p1", "nombre": "Diego", "email": "diego@local.test" },
-    { "id": "p2", "nombre": "Pareja", "email": "pareja@local.test" }
+    { "id": "p1", "nombre": "Persona 1", "email": "persona1@local.test" },
+    { "id": "p2", "nombre": "Persona 2", "email": "persona2@local.test" }
   ],
   "recurrentes": [
     { "id": "r1", "personaId": "p1", "concepto": "Internet", "importe": 60, "desde": "$anio-01", "hasta": null, "overrides": {} }
