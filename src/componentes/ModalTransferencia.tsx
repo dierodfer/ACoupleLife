@@ -67,6 +67,7 @@ function FormularioTransferencia({ datos }: Readonly<{ datos: Datos }>) {
     >
       <Campo etiqueta="Importe" requerido>
         <EntradaEuros
+          name="importe"
           valor={importe}
           error={errorImporte}
           disabled={completa}

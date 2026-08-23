@@ -98,6 +98,7 @@ function Personas({ datos }: Readonly<{ datos: Datos }>) {
           <div key={persona.id} className="grid grid-cols-2 gap-3">
             <Campo etiqueta="Nombre">
               <Entrada
+                name="nombre-persona"
                 value={nombres[persona.id] ?? persona.nombre}
                 onChange={(e) => setNombres((n) => ({ ...n, [persona.id]: e.target.value }))}
               />
@@ -161,6 +162,7 @@ function Compartir({ datos }: Readonly<{ datos: Datos }>) {
         <Campo etiqueta="Email de Google">
           <Entrada
             type="email"
+            name="email-pareja"
             value={email}
             placeholder="pareja@gmail.com"
             onChange={(e) => setEmail(e.target.value)}

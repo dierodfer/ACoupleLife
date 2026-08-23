@@ -211,14 +211,7 @@ function Movimientos({ datos }: Readonly<{ datos: Datos }>) {
               </span>
             }
             detalle={nombrePersona(datos, recurrente.personaId)}
-            accion={
-              <span className="flex items-center gap-1">
-                <span className={`cifras ${importe === 0 ? 'text-sutil line-through' : ''}`}>
-                  {euros(importe)}
-                </span>
-                <AjusteRecurrente recurrenteId={recurrente.id} importeActual={importe} />
-              </span>
-            }
+            accion={<AjusteRecurrente recurrenteId={recurrente.id} importeActual={importe} />}
           />
         ))}
 
@@ -362,23 +355,29 @@ function AjusteRecurrente({
 
   if (!editando) {
     return (
-      <button
-        type="button"
-        aria-label="Ajustar este mes"
-        onClick={() => {
-          setValor(importeEditable(importeActual))
-          setEditando(true)
-        }}
-        className="rounded-full p-1 text-sutil transition active:text-acento"
-      >
-        <IconoLapiz className="h-4 w-4" />
-      </button>
+      <span className="flex items-center gap-1">
+        <span className={`cifras ${importeActual === 0 ? 'text-sutil line-through' : ''}`}>
+          {euros(importeActual)}
+        </span>
+        <button
+          type="button"
+          aria-label="Ajustar este mes"
+          onClick={() => {
+            setValor(importeEditable(importeActual))
+            setEditando(true)
+          }}
+          className="rounded-full p-1 text-sutil transition active:text-acento"
+        >
+          <IconoLapiz className="h-4 w-4" />
+        </button>
+      </span>
     )
   }
 
   return (
     <span className="flex items-center gap-1">
       <EntradaEuros
+        name="importe-ajuste"
         valor={valor}
         autoFocus
         aria-label="Importe solo para este mes"
