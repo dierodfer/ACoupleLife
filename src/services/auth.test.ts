@@ -180,23 +180,57 @@ describe('entrar y salir', () => {
 })
 
 describe('perfil de Google', () => {
-  it('no confía en la forma del JSON del servicio antes de guardarlo', async () => {
-    // Lo que llega de fuera puede no tener la forma esperada: un campo con el
-    // tipo equivocado no debe colarse tal cual en lo que se guarda en `localStorage`.
+  async function conPerfil(perfil: unknown) {
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ email: 12345, name: { objeto: true }, picture: null }),
-        } as unknown as Response),
+        Promise.resolve({ ok: true, json: () => Promise.resolve(perfil) } as unknown as Response),
       ),
     )
     const auth = await cargarAuth()
+    const usuario = await auth.entrar()
+    // Lo que se guarda tiene que ser justo lo que se devuelve: no vale que
+    // `entrar()` limpie el valor y `recordarSesion` guarde el original sin filtrar.
+    expect(sesionLeida()?.usuario).toEqual(usuario)
+    return usuario
+  }
 
-    const esperado = { email: '', nombre: 'Usuario', foto: undefined }
-    expect(await auth.entrar()).toEqual(esperado)
-    expect(sesionLeida()?.usuario).toEqual(esperado)
+  it('descarta campos con el tipo equivocado', async () => {
+    const usuario = await conPerfil({ email: 12345, name: { objeto: true }, picture: null })
+    expect(usuario).toEqual({ email: '', nombre: 'Usuario', foto: undefined })
+  })
+
+  it('descarta un email o un nombre con forma inesperada aunque sean texto', async () => {
+    // El fallo original solo miraba el tipo: un string con forma de payload
+    // (HTML, una etiqueta de script) pasaba igual que un nombre de verdad.
+    const usuario = await conPerfil({
+      email: 'no es un email',
+      name: '<script>alert(1)</script>',
+      picture: 'javascript:alert(1)',
+    })
+    expect(usuario).toEqual({ email: '', nombre: 'Usuario', foto: undefined })
+  })
+
+  it('acepta un perfil con forma normal', async () => {
+    const usuario = await conPerfil({
+      email: 'ana@example.com',
+      name: "Ana O'Brien-García",
+      picture: 'https://lh3.googleusercontent.com/a/foto.jpg',
+    })
+    expect(usuario).toEqual({
+      email: 'ana@example.com',
+      nombre: "Ana O'Brien-García",
+      foto: 'https://lh3.googleusercontent.com/a/foto.jpg',
+    })
+  })
+
+  it('descarta una foto que no sea https', async () => {
+    const usuario = await conPerfil({
+      email: 'ana@example.com',
+      name: 'Ana',
+      picture: 'http://sin-cifrar.example.com/foto.jpg',
+    })
+    expect(usuario.foto).toBeUndefined()
   })
 })
 

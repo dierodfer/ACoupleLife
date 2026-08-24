@@ -249,14 +249,40 @@ export async function reanudarSesion(): Promise<Usuario | null> {
   }
 }
 
+// El JSON de Google es texto libre: no hay una lista cerrada de nombres
+// posibles, como sí la habría para un tema de interfaz. La equivalencia aquí
+// es restringir la forma en vez del valor exacto: nada que no pueda ser un
+// email, un nombre o una URL https legítimos llega a guardarse, aunque sea
+// del tipo correcto — comprobar solo `typeof` deja pasar cualquier texto.
+const EMAIL_VALIDO = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,24}$/
+const NOMBRE_VALIDO = /^[\p{L}\p{N} .,'-]{1,100}$/u
+
+function emailValido(valor: unknown): string {
+  return typeof valor === 'string' && EMAIL_VALIDO.test(valor) ? valor : ''
+}
+
+function nombreValido(valor: unknown): string | undefined {
+  return typeof valor === 'string' && NOMBRE_VALIDO.test(valor) ? valor : undefined
+}
+
+/** `undefined` si no es una URL bien formada, o si no usa https. */
+function urlFotoValida(valor: unknown): string | undefined {
+  if (typeof valor !== 'string') return undefined
+  try {
+    return new URL(valor).protocol === 'https:' ? valor : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /**
  * Perfil de Google del dueño de un token concreto.
  *
- * La respuesta es JSON de un servicio externo: se valida su forma con
- * comprobaciones `typeof` en el sitio, campo a campo, en vez de darla por
- * buena con un cast, porque de aquí sale lo que `recordarSesion` escribe en
- * `localStorage`. Mismo principio que `normalizar` aplica al archivo de
- * Drive, aquí para la única otra entrada de datos ajenos.
+ * La respuesta es JSON de un servicio externo: se restringe a la forma
+ * esperada campo a campo en vez de darla por buena con un cast, porque de
+ * aquí sale lo que `recordarSesion` escribe en `localStorage`. Mismo
+ * principio que `normalizar` aplica al archivo de Drive, aquí para la única
+ * otra entrada de datos ajenos.
  */
 async function perfil(acceso: string): Promise<Usuario> {
   const respuesta = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -267,11 +293,12 @@ async function perfil(acceso: string): Promise<Usuario> {
   const bruto: unknown = await respuesta.json()
   const datos = bruto && typeof bruto === 'object' ? (bruto as Record<string, unknown>) : {}
 
-  const email = typeof datos.email === 'string' ? datos.email : ''
-  const nombre = typeof datos.name === 'string' ? datos.name : email || 'Usuario'
-  const foto = typeof datos.picture === 'string' ? datos.picture : undefined
-
-  return { email, nombre, foto }
+  const email = emailValido(datos.email)
+  return {
+    email,
+    nombre: nombreValido(datos.name) ?? (email || 'Usuario'),
+    foto: urlFotoValida(datos.picture),
+  }
 }
 
 export async function datosUsuario(): Promise<Usuario> {
