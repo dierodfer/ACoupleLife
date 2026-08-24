@@ -73,7 +73,9 @@ para documentar el formato de cada cadena.
      escribir y lanza `ConflictoDrive` si no coincide, porque la API no ofrece escritura
      condicional atómica. También gestiona el Google Picker (selección del segundo usuario) y
      compartir el archivo, ambos limitados por el scope `drive.file` (la app solo puede tocar
-     lo que ella misma ha creado).
+     lo que ella misma ha creado). Por eso el Picker se construye con `setAppId` (el número de
+     proyecto, deducido del client ID): es lo que concede el acceso a un archivo ajeno, y sin
+     él la selección funciona pero Drive responde 404 al leerlo.
 
 3. **`src/store/useStore.ts`** — el único punto que conecta lib + services + UI, con Zustand.
    - Máquina de estados explícita en `EstadoApp` (`arrancando` → `sinSesion`/`sinArchivo` →

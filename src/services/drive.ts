@@ -63,6 +63,15 @@ async function peticion(
     return peticion(url, opciones, true)
   }
 
+  // Con el scope `drive.file` un archivo al que la app no tiene permiso se ve
+  // igual que uno borrado, así que el 404 se cuenta como las dos cosas.
+  if (respuesta.status === 404) {
+    throw new ErrorDrive(
+      'No se pudo abrir el archivo de Drive: puede que ya no exista, o que esta cuenta ' +
+        'todavía no le haya dado acceso a la aplicación.',
+    )
+  }
+
   if (!respuesta.ok) {
     const detalle = await respuesta.text().catch(() => '')
     throw new ErrorDrive(`Drive respondió ${respuesta.status}. ${detalle.slice(0, 300)}`)
@@ -159,11 +168,32 @@ export async function compartirCon(fileId: string, email: string): Promise<void>
 }
 
 /**
+ * Número de proyecto de Google Cloud, que el Picker necesita para conceder
+ * acceso a un archivo ajeno (ver `elegirArchivo`). Es el prefijo numérico del
+ * client ID —`123456789-xxx.apps.googleusercontent.com`—, así que se deduce en
+ * vez de pedir otra variable de entorno más.
+ */
+export function numeroDeProyecto(clientId: string | undefined): string {
+  const numero = /^(\d+)-/.exec(clientId ?? '')?.[1]
+  if (!numero) {
+    throw new ErrorDrive(
+      'VITE_GOOGLE_CLIENT_ID no tiene la forma «123456789-xxx.apps.googleusercontent.com», ' +
+        'así que no se puede deducir el número de proyecto que necesita el selector de Google.',
+    )
+  }
+  return numero
+}
+
+/**
  * Selector de Google (flujo del segundo usuario).
  *
  * `drive.file` solo da acceso a lo que ha creado la propia app, así que aunque
  * el archivo esté compartido, el segundo usuario tiene que señalarlo una vez con
  * el Picker para autorizarlo. A partir de ahí el permiso queda concedido.
+ *
+ * Para que esa concesión ocurra sobre un archivo que **no es suyo** hace falta
+ * `setAppId` con el número de proyecto: sin él el selector deja elegirlo igual,
+ * pero el permiso nunca llega a darse y Drive responde 404 al leerlo después.
  */
 export async function elegirArchivo(): Promise<string | null> {
   const clave = import.meta.env.VITE_GOOGLE_API_KEY
@@ -172,6 +202,7 @@ export async function elegirArchivo(): Promise<string | null> {
       'Falta VITE_GOOGLE_API_KEY, necesaria para el selector de archivos de Google.',
     )
   }
+  const proyecto = numeroDeProyecto(import.meta.env.VITE_GOOGLE_CLIENT_ID)
 
   const token = await tokenValido()
   await cargarScript('https://apis.google.com/js/api.js')
@@ -204,6 +235,7 @@ export async function elegirArchivo(): Promise<string | null> {
       .addView(vista('Mi unidad', true))
       .setOAuthToken(token)
       .setDeveloperKey(clave)
+      .setAppId(proyecto)
       .setTitle(`Elige ${NOMBRE_ARCHIVO}`)
       .setCallback((datos) => {
         const accion = datos[picker.Response.ACTION]
