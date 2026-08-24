@@ -179,8 +179,9 @@ describe('entrar y salir', () => {
   })
 })
 
-describe('perfil de Google', () => {
-  async function conPerfil(perfil: unknown) {
+describe('lo que llega a localStorage', () => {
+  /** Entra con el perfil que devuelva Google y devuelve lo que quedó guardado. */
+  async function entrarCon(perfil: unknown) {
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
@@ -188,49 +189,45 @@ describe('perfil de Google', () => {
       ),
     )
     const auth = await cargarAuth()
-    const usuario = await auth.entrar()
-    // Lo que se guarda tiene que ser justo lo que se devuelve: no vale que
-    // `entrar()` limpie el valor y `recordarSesion` guarde el original sin filtrar.
-    expect(sesionLeida()?.usuario).toEqual(usuario)
-    return usuario
+    await auth.entrar()
+    return sesionLeida()
   }
 
-  it('descarta campos con el tipo equivocado', async () => {
-    const usuario = await conPerfil({ email: 12345, name: { objeto: true }, picture: null })
-    expect(usuario).toEqual({ email: '', nombre: 'Usuario', foto: undefined })
+  it('guarda un perfil con forma normal', async () => {
+    const guardado = await entrarCon({ email: 'ana@example.com', name: "Ana O'Brien-García" })
+    expect(guardado?.usuario).toEqual({ email: 'ana@example.com', nombre: "Ana O'Brien-García" })
   })
 
-  it('descarta un email o un nombre con forma inesperada aunque sean texto', async () => {
-    // El fallo original solo miraba el tipo: un string con forma de payload
-    // (HTML, una etiqueta de script) pasaba igual que un nombre de verdad.
-    const usuario = await conPerfil({
-      email: 'no es un email',
-      name: '<script>alert(1)</script>',
-      picture: 'javascript:alert(1)',
-    })
-    expect(usuario).toEqual({ email: '', nombre: 'Usuario', foto: undefined })
+  it('no guarda nada si el perfil trae texto con forma inesperada', async () => {
+    // El sitio donde se escribe es el que decide qué se escribe: un nombre con
+    // una etiqueta dentro es un string válido, pero no tiene forma de nombre.
+    expect(
+      await entrarCon({ email: 'ana@example.com', name: '<script>alert(1)</script>' }),
+    ).toBeNull()
+    expect(await entrarCon({ email: 'no es un email', name: 'Ana' })).toBeNull()
   })
 
-  it('acepta un perfil con forma normal', async () => {
-    const usuario = await conPerfil({
-      email: 'ana@example.com',
-      name: "Ana O'Brien-García",
-      picture: 'https://lh3.googleusercontent.com/a/foto.jpg',
-    })
-    expect(usuario).toEqual({
-      email: 'ana@example.com',
-      nombre: "Ana O'Brien-García",
-      foto: 'https://lh3.googleusercontent.com/a/foto.jpg',
-    })
+  it('no guarda nada si el perfil trae campos con el tipo equivocado', async () => {
+    expect(await entrarCon({ email: 12345, name: { objeto: true } })).toBeNull()
   })
 
-  it('descarta una foto que no sea https', async () => {
-    const usuario = await conPerfil({
-      email: 'ana@example.com',
-      name: 'Ana',
-      picture: 'http://sin-cifrar.example.com/foto.jpg',
-    })
-    expect(usuario.foto).toBeUndefined()
+  it('deja la sesión en memoria aunque no se pueda guardar', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ email: 'no es un email', name: 'Ana' }),
+        } as unknown as Response),
+      ),
+    )
+    const auth = await cargarAuth()
+    await auth.entrar()
+
+    // Nada guardado, pero el token recién pedido sigue sirviendo sin pedir otro.
+    expect(sesionLeida()).toBeNull()
+    expect(await auth.tokenValido()).toBe('token-1')
+    expect(peticiones).toHaveLength(1)
   })
 })
 

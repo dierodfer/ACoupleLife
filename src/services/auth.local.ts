@@ -17,17 +17,12 @@ export function tokenValido(): Promise<string> {
   return Promise.resolve('token-local')
 }
 
-export function haySesion(): boolean {
-  return true
-}
-
 export function reanudarSesion(): Promise<Usuario | null> {
   return Promise.resolve(USUARIO_LOCAL)
 }
 
-export function datosUsuario(): Promise<Usuario> {
-  return Promise.resolve(USUARIO_LOCAL)
-}
+/** En local no hay token que revocar, pero `drive.ts` la llama igual. */
+export function invalidarToken(): void {}
 
 export function salir(): void {
   // No hay sesión real de Google que cerrar en local.

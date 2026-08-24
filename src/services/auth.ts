@@ -5,8 +5,9 @@ import type { ClienteToken, RespuestaToken } from './google'
  * "token flow" de Identity Services, que da un access token de ~1h y ningún
  * refresh token. Para no pedir login en cada visita, la sesión (token, perfil
  * y caducidad) se guarda en `localStorage` y se renueva en silencio antes de
- * caducar; el cómo está detallado junto a `pedirToken` y `Sesion`. Guardarla
- * amplía la exposición del token al perfil del navegador del dispositivo.
+ * caducar; el cómo está detallado junto a `pedirToken` y `recordarSesion`.
+ * Guardarla amplía la exposición del token al perfil del navegador del
+ * dispositivo.
  *
  * Quien necesite un token debe pedirlo siempre con `tokenValido()`, nunca
  * guardárselo por su cuenta.
@@ -30,7 +31,6 @@ const ESPERA_SILENCIOSA_MS = 12_000
 export interface Usuario {
   email: string
   nombre: string
-  foto?: string
 }
 
 /** Lo que se guarda entre visitas. El perfil va dentro para arrancar sin red. */
@@ -65,10 +65,41 @@ function leerSesion(): Sesion | null {
   }
 }
 
+/**
+ * Forma que debe tener lo que llega del perfil de Google para poder guardarlo.
+ * El nombre admite también la de un email, porque es el sustituto cuando Google
+ * no devuelve nombre.
+ */
+const EMAIL_VALIDO = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,24}$/
+const NOMBRE_VALIDO = /^[\p{L}\p{N} .,'@_+-]{1,100}$/u
+
+/**
+ * Escribe la sesión en `localStorage`.
+ *
+ * El email y el nombre salen del JSON de Google, así que se comprueban aquí,
+ * en la misma función que escribe y justo antes de hacerlo: es la única forma
+ * de que la garantía valga para todos los caminos que llevan a guardar. Si no
+ * tienen la forma esperada no se guarda nada; la sesión sigue viva en memoria
+ * y solo deja de sobrevivir a una recarga.
+ */
 function recordarSesion(nueva: Sesion | null): void {
   try {
-    if (nueva) localStorage.setItem(CLAVE_SESION, JSON.stringify(nueva))
-    else localStorage.removeItem(CLAVE_SESION)
+    if (!nueva) {
+      localStorage.removeItem(CLAVE_SESION)
+      return
+    }
+
+    const { token, caducaEn, usuario } = nueva
+    if (!EMAIL_VALIDO.test(usuario.email) || !NOMBRE_VALIDO.test(usuario.nombre)) return
+
+    localStorage.setItem(
+      CLAVE_SESION,
+      JSON.stringify({
+        token,
+        caducaEn,
+        usuario: { email: usuario.email, nombre: usuario.nombre },
+      }),
+    )
   } catch {
     // Sin almacenamiento la app sigue funcionando; solo pedirá login más a menudo.
   }
@@ -178,9 +209,8 @@ async function pedirToken(silencioso: boolean): Promise<{ token: string; caducaE
   })
 }
 
-/** Guarda la sesión resultante de un token nuevo, reutilizando el perfil si ya lo teníamos. */
-async function abrirSesion(token: string, caducaEn: number): Promise<Sesion> {
-  const usuario = sesion?.usuario ?? (await perfil(token))
+/** Único sitio que fija la sesión en memoria y la manda guardar. */
+function fijarSesion(token: string, caducaEn: number, usuario: Usuario): Sesion {
   sesion = { token, caducaEn, usuario }
   recordarSesion(sesion)
   return sesion
@@ -189,7 +219,10 @@ async function abrirSesion(token: string, caducaEn: number): Promise<Sesion> {
 /** Renueva en silencio. Las llamadas simultáneas comparten la misma petición. */
 function renovar(): Promise<Sesion> {
   renovacion ??= pedirToken(true)
-    .then(({ token, caducaEn }) => abrirSesion(token, caducaEn))
+    // Renovar no cambia de persona: se reaprovecha el perfil que ya teníamos.
+    .then(async ({ token, caducaEn }) =>
+      fijarSesion(token, caducaEn, sesion?.usuario ?? (await perfil(token))),
+    )
     .finally(() => {
       renovacion = null
     })
@@ -200,10 +233,7 @@ function renovar(): Promise<Sesion> {
 export async function entrar(): Promise<Usuario> {
   const { token, caducaEn } = await pedirToken(false)
   // Puede ser otra persona la que entra, así que el perfil se relee siempre.
-  const usuario = await perfil(token)
-  sesion = { token, caducaEn, usuario }
-  recordarSesion(sesion)
-  return usuario
+  return fijarSesion(token, caducaEn, await perfil(token)).usuario
 }
 
 /**
@@ -213,11 +243,6 @@ export async function entrar(): Promise<Usuario> {
 export async function tokenValido(): Promise<string> {
   if (vigente(sesion)) return sesion.token
   return (await renovar()).token
-}
-
-/** ¿Hay una sesión utilizable ahora mismo, sin abrir ninguna ventana? */
-export function haySesion(): boolean {
-  return sesion !== null && Date.now() < sesion.caducaEn
 }
 
 /**
@@ -249,60 +274,16 @@ export async function reanudarSesion(): Promise<Usuario | null> {
   }
 }
 
-// El JSON de Google es texto libre: no hay una lista cerrada de nombres
-// posibles, como sí la habría para un tema de interfaz. La equivalencia aquí
-// es restringir la forma en vez del valor exacto: nada que no pueda ser un
-// email, un nombre o una URL https legítimos llega a guardarse, aunque sea
-// del tipo correcto — comprobar solo `typeof` deja pasar cualquier texto.
-const EMAIL_VALIDO = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,24}$/
-const NOMBRE_VALIDO = /^[\p{L}\p{N} .,'-]{1,100}$/u
-
-function emailValido(valor: unknown): string {
-  return typeof valor === 'string' && EMAIL_VALIDO.test(valor) ? valor : ''
-}
-
-function nombreValido(valor: unknown): string | undefined {
-  return typeof valor === 'string' && NOMBRE_VALIDO.test(valor) ? valor : undefined
-}
-
-/** `undefined` si no es una URL bien formada, o si no usa https. */
-function urlFotoValida(valor: unknown): string | undefined {
-  if (typeof valor !== 'string') return undefined
-  try {
-    return new URL(valor).protocol === 'https:' ? valor : undefined
-  } catch {
-    return undefined
-  }
-}
-
-/**
- * Perfil de Google del dueño de un token concreto.
- *
- * La respuesta es JSON de un servicio externo: se restringe a la forma
- * esperada campo a campo en vez de darla por buena con un cast, porque de
- * aquí sale lo que `recordarSesion` escribe en `localStorage`. Mismo
- * principio que `normalizar` aplica al archivo de Drive, aquí para la única
- * otra entrada de datos ajenos.
- */
+/** Perfil de Google del dueño de un token concreto. */
 async function perfil(acceso: string): Promise<Usuario> {
   const respuesta = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
     headers: { Authorization: `Bearer ${acceso}` },
   })
   if (!respuesta.ok) throw new ErrorAuth('No se pudo leer el perfil de Google.')
 
-  const bruto: unknown = await respuesta.json()
-  const datos = bruto && typeof bruto === 'object' ? (bruto as Record<string, unknown>) : {}
-
-  const email = emailValido(datos.email)
-  return {
-    email,
-    nombre: nombreValido(datos.name) ?? (email || 'Usuario'),
-    foto: urlFotoValida(datos.picture),
-  }
-}
-
-export async function datosUsuario(): Promise<Usuario> {
-  return perfil(await tokenValido())
+  const datos = (await respuesta.json()) as { email?: unknown; name?: unknown }
+  const email = typeof datos.email === 'string' ? datos.email : ''
+  return { email, nombre: typeof datos.name === 'string' ? datos.name : email || 'Usuario' }
 }
 
 export function salir(): void {

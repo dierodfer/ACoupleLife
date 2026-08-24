@@ -21,8 +21,7 @@ const { auth, drive, ConflictoFalso } = vi.hoisted(() => {
       salir: vi.fn(),
       reanudarSesion: vi.fn(),
       tokenValido: vi.fn(),
-      haySesion: vi.fn(),
-      datosUsuario: vi.fn(),
+      invalidarToken: vi.fn(),
     },
     drive: {
       ConflictoDrive: ConflictoFalso,
