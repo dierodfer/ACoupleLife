@@ -535,7 +535,3 @@ export function Aviso({
     </div>
   )
 }
-
-export function Vacio({ children }: Readonly<{ children: ReactNode }>) {
-  return <p className="px-4 py-6 text-center text-[15px] text-tenue">{children}</p>
-}

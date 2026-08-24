@@ -191,39 +191,14 @@ describe('entrar y salir', () => {
 })
 
 describe('lo que llega a localStorage', () => {
-  /** Entra con el perfil que devuelva Google y devuelve el texto tal cual guardado. */
-  async function entrarCon(perfil: unknown) {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() =>
-        Promise.resolve({ ok: true, json: () => Promise.resolve(perfil) } as unknown as Response),
-      ),
-    )
+  it('usa el perfil en memoria, pero guarda solo el token y su caducidad', async () => {
     const auth = await cargarAuth()
     const usuario = await auth.entrar()
-    return { usuario, guardado: localStorage.getItem(CLAVE) ?? '' }
-  }
+    const guardado = localStorage.getItem(CLAVE) ?? ''
 
-  it('guarda el token y su caducidad, y nada más', async () => {
-    const { guardado } = await entrarCon({ email: 'ana@example.com', name: 'Ana' })
+    expect(usuario).toEqual(USUARIO)
     expect(Object.keys(JSON.parse(guardado) as object)).toEqual(['token', 'caducaEn'])
-  })
-
-  it('el perfil se usa en memoria pero no se escribe', async () => {
-    const { usuario, guardado } = await entrarCon({ email: 'ana@example.com', name: 'Ana Pérez' })
-
-    expect(usuario).toEqual({ email: 'ana@example.com', nombre: 'Ana Pérez' })
-    expect(guardado).not.toContain('ana@example.com')
-    expect(guardado).not.toContain('Ana Pérez')
-  })
-
-  it('tampoco escribe un perfil con contenido inesperado', async () => {
-    // Ya no hace falta juzgar si el contenido es aceptable: no se guarda ninguno.
-    const { guardado } = await entrarCon({
-      email: 'ana@example.com',
-      name: '<script>alert(1)</script>',
-    })
-    expect(guardado).not.toContain('<script>')
+    expect(guardado).not.toContain(USUARIO.email)
   })
 })
 

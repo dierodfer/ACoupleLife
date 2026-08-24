@@ -1,4 +1,4 @@
-import { anioDeFecha, mesDeFecha, mesEnRango, mesesDelAnio, partesMes } from './fechas'
+import { mesDeFecha, mesEnRango, mesesDelAnio, partesMes } from './fechas'
 import type {
   Anio,
   Datos,
@@ -233,8 +233,4 @@ export function liquidacionDelMes(datos: Datos, mes: MesKey): Liquidacion[] {
       pendiente: Math.max(pendiente, 0),
     }
   })
-}
-
-export function anioDe(fecha: string): number {
-  return Number(anioDeFecha(fecha))
 }
