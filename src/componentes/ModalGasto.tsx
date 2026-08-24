@@ -151,6 +151,7 @@ function FormularioGasto({
 
           <Campo etiqueta="Importe" requerido>
             <EntradaEuros
+              name="importe"
               valor={importe}
               error={errorImporte}
               autoFocus
@@ -162,7 +163,7 @@ function FormularioGasto({
           </Campo>
 
           <Campo etiqueta="Concepto">
-            <Entrada value={concepto} onChange={(e) => setConcepto(e.target.value)} />
+            <Entrada name="concepto" value={concepto} onChange={(e) => setConcepto(e.target.value)} />
           </Campo>
 
           {tipo === 'recurrente' && (

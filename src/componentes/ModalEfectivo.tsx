@@ -52,6 +52,7 @@ function FormularioEfectivo({ datos }: Readonly<{ datos: Datos }>) {
     >
       <Campo etiqueta="Importe" requerido>
         <EntradaEuros
+          name="importe"
           valor={importe}
           error={errorImporte}
           autoFocus

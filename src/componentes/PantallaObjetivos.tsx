@@ -120,6 +120,7 @@ function ObjetivoDePersona({
         <span className="font-medium">{persona.nombre}</span>
         <span className="flex items-center gap-2">
           <EntradaEuros
+            name="objetivo-mensual"
             aria-label={`Objetivo mensual de ${persona.nombre}`}
             className="w-32 py-2 text-right"
             valor={valor}
@@ -240,6 +241,7 @@ function MesDelObjetivo({
       </button>
 
       <EntradaEuros
+        name="objetivo-mes"
         aria-label={`Objetivo de ${nombrePersona} en ${nombreMes}`}
         valor={valor}
         onCambiar={setValor}

@@ -26,12 +26,10 @@
   --color-negativo: oklch(0.628 0.237 29);
 
   /*
-   * Colores de serie de los gráficos: identifican de dónde sale cada aportación
-   * (naranja, turquesa y azul, del repertorio de iOS). Son tokens aparte de
-   * `acento`, `positivo` y `negativo` a propósito: esos tres significan estado
-   * (pulsable, al día, error) y reutilizarlos como serie haría que un tramo del
-   * gráfico pareciera decir algo que no dice. Los pares están comprobados para
-   * daltonismo (protan/deutan/tritan) contra el fondo de cada tema.
+   * Colores de serie de los gráficos (naranja, turquesa, azul). Aparte de
+   * `acento`/`positivo`/`negativo` a propósito: esos tres significan estado, y
+   * reutilizarlos como serie haría que un tramo del gráfico pareciera decir
+   * algo que no dice. Comprobados para daltonismo contra el fondo de cada tema.
    */
   --color-serie-gastos: oklch(0.74 0.17 63);
   --color-serie-efectivo: oklch(0.7 0.115 205);
@@ -88,7 +86,7 @@ body {
     'Segoe UI',
     Roboto,
     sans-serif;
-  /* Cuerpo de 17px, el tamaño de lectura de iOS. */
+  /* El tamaño de lectura de iOS. */
   font-size: 17px;
   line-height: 1.35;
 }
@@ -99,7 +97,6 @@ body {
   font-feature-settings: 'tnum';
 }
 
-/* Títulos grandes de iOS: apretados y con mucho peso. */
 .titulo-grande {
   font-size: 2.125rem;
   line-height: 1.1;

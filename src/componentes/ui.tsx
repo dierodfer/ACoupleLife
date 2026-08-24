@@ -244,6 +244,13 @@ export function ControlSegmentado<T extends string>({
 const ESTILO_ENTRADA =
   'w-full rounded-fila border border-borde bg-superficie px-3.5 py-2.5 text-[17px] text-tinta outline-none transition focus:border-acento disabled:opacity-50'
 
+/**
+ * Sin `name` ni `autocomplete`, Chrome no sabe clasificar el campo y muestra su
+ * barra de autocompletado (llave/tarjeta/ubicación) encima del teclado por si
+ * acaso, en cualquier input de texto ambiguo. `off` es el valor por defecto,
+ * pero cada campo puede pedir el suyo (p. ej. `autoComplete="email"`) porque va
+ * antes del `...props`: lo explícito gana.
+ */
 export function Entrada({
   className,
   error,
@@ -251,6 +258,7 @@ export function Entrada({
 }: InputHTMLAttributes<HTMLInputElement> & { error?: boolean }) {
   return (
     <input
+      autoComplete="off"
       {...props}
       aria-invalid={error || undefined}
       className={clases(
@@ -342,6 +350,7 @@ export function EntradaEuros({
 
   return (
     <input
+      autoComplete="off"
       {...props}
       ref={ref}
       type="text"
@@ -525,8 +534,4 @@ export function Aviso({
       {accion}
     </div>
   )
-}
-
-export function Vacio({ children }: Readonly<{ children: ReactNode }>) {
-  return <p className="px-4 py-6 text-center text-[15px] text-tenue">{children}</p>
 }
