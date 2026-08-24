@@ -5,11 +5,10 @@ import { cargarScript, invalidarToken, tokenValido } from './auth'
 /**
  * Acceso al archivo JSON compartido en Google Drive.
  *
- * Sobre la concurrencia: Drive API v3 **no** expone `etag` (se eliminó del
- * recurso `files`). El equivalente es `version`, un entero que incrementa en
- * cada modificación. Antes de escribir releemos esa `version` y, si no coincide
- * con la que teníamos, abortamos: es detección de conflicto, no bloqueo, porque
- * la API no ofrece escritura condicional. Para dos usuarios es suficiente.
+ * Drive API v3 no expone `etag`; el equivalente es `version`, un entero que
+ * incrementa en cada modificación. Antes de escribir releemos esa `version` y
+ * abortamos si no coincide: es detección de conflicto, no bloqueo, porque la
+ * API no ofrece escritura condicional. Para dos usuarios es suficiente.
  */
 
 export const NOMBRE_ARCHIVO = 'cuentas-pareja.json'

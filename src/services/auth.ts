@@ -1,25 +1,12 @@
 import type { ClienteToken, RespuestaToken } from './google'
 
 /**
- * Autenticación con Google desde una web estática.
- *
- * Sin backend solo cabe el "token flow" de Google Identity Services: devuelve un
- * access token de ~1 hora y **no** hay refresh token. Para no acabar pidiendo
- * login en cada visita, la sesión se apoya en tres cosas:
- *
- * 1. El token y el perfil se guardan en `localStorage`, así que mientras el
- *    token siga vigente se entra sin hablar con Google siquiera.
- * 2. Cuando caduca se renueva en silencio (`prompt: 'none'`) pasando `hint` con
- *    el email ya conocido: sin esa pista Google no sabe qué cuenta elegir si hay
- *    varias iniciadas en el navegador, y la renovación falla.
- * 3. Si la renovación silenciosa no llega a contestar —los navegadores que
- *    bloquean cookies de terceros cortan ese iframe sin avisar—, se abandona por
- *    tiempo en vez de dejar la app colgada, y se vuelve a la pantalla de acceso.
- *
- * Guardar el token en `localStorage` amplía su exposición: ya no vive solo en
- * memoria, sino en el perfil del navegador de ese dispositivo. Es un token de
- * una hora, limitado al scope `drive.file` (los archivos que crea esta app), y
- * la alternativa era volver a pasar por Google en cada visita.
+ * Autenticación con Google desde una web estática: sin backend solo cabe el
+ * "token flow" de Identity Services, que da un access token de ~1h y ningún
+ * refresh token. Para no pedir login en cada visita, la sesión (token, perfil
+ * y caducidad) se guarda en `localStorage` y se renueva en silencio antes de
+ * caducar; el cómo está detallado junto a `pedirToken` y `Sesion`. Guardarla
+ * amplía la exposición del token al perfil del navegador del dispositivo.
  *
  * Quien necesite un token debe pedirlo siempre con `tokenValido()`, nunca
  * guardárselo por su cuenta.
