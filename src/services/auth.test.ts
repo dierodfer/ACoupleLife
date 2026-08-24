@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Usuario } from './auth'
 import type { RespuestaToken } from './google'
 
 /**
@@ -56,13 +55,13 @@ function instalarGoogle() {
 
 /** Sesión ya guardada de una visita anterior, con el token vivo o caducado. */
 function sesionGuardada(caducaEn: number) {
-  localStorage.setItem(CLAVE, JSON.stringify({ token: 'token-viejo', caducaEn, usuario: USUARIO }))
+  localStorage.setItem(CLAVE, JSON.stringify({ token: 'token-viejo', caducaEn }))
 }
 
-function sesionLeida(): { token: string; caducaEn: number; usuario: Usuario } | null {
+function sesionLeida(): Record<string, unknown> | null {
   const bruto = localStorage.getItem(CLAVE)
   if (!bruto) return null
-  return JSON.parse(bruto) as { token: string; caducaEn: number; usuario: Usuario }
+  return JSON.parse(bruto) as Record<string, unknown>
 }
 
 /** El módulo lee `localStorage` al importarse, así que cada test parte de cero. */
@@ -100,24 +99,36 @@ afterEach(() => {
 })
 
 describe('reanudar sesión', () => {
-  it('entra sin hablar con Google si el token guardado sigue vigente', async () => {
+  it('con el token guardado vigente no pasa por Google, solo relee el perfil', async () => {
     sesionGuardada(Date.now() + HORA)
     const auth = await cargarAuth()
 
     expect(await auth.reanudarSesion()).toEqual(USUARIO)
+    // Ninguna petición de token: ni ventana, ni renovación, ni interrupción.
     expect(peticiones).toHaveLength(0)
-    expect(fetch).not.toHaveBeenCalled()
+    // El perfil no se guarda, así que se pide de nuevo (una llamada, sin UI).
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 
-  it('renueva en silencio y diciendo qué cuenta cuando el token ha caducado', async () => {
+  it('renueva en silencio cuando el token guardado ha caducado', async () => {
     sesionGuardada(Date.now() - HORA)
     const auth = await cargarAuth()
 
     expect(await auth.reanudarSesion()).toEqual(USUARIO)
-    // Sin `hint` Google no sabe cuál elegir si hay varias cuentas iniciadas, y
-    // la renovación silenciosa falla: era el motivo de acabar en el login.
-    expect(peticiones).toEqual([{ prompt: 'none', hint: USUARIO.email }])
+    // Recién abierta la app no hay perfil en memoria todavía, así que tampoco
+    // `hint`: Google resuelve solo si no hay varias cuentas iniciadas.
+    expect(peticiones).toEqual([{ prompt: 'none', hint: undefined }])
     expect(sesionLeida()?.token).toBe('token-1')
+  })
+
+  it('una vez leído el perfil, las renovaciones ya dicen qué cuenta', async () => {
+    const auth = await cargarAuth()
+    await auth.entrar()
+
+    auth.invalidarToken()
+    await auth.tokenValido()
+
+    expect(peticiones[1]).toEqual({ prompt: 'none', hint: USUARIO.email })
   })
 
   it('no pide nada si no hay sesión guardada', async () => {
@@ -165,7 +176,7 @@ describe('entrar y salir', () => {
     expect(await auth.entrar()).toEqual(USUARIO)
     // `prompt: ''` pregunta solo la primera vez; 'consent' la repetiría siempre.
     expect(peticiones).toEqual([{ prompt: '', hint: undefined }])
-    expect(sesionLeida()?.usuario).toEqual(USUARIO)
+    expect(sesionLeida()?.token).toBe('token-1')
   })
 
   it('salir borra la sesión guardada', async () => {
@@ -180,7 +191,7 @@ describe('entrar y salir', () => {
 })
 
 describe('lo que llega a localStorage', () => {
-  /** Entra con el perfil que devuelva Google y devuelve lo que quedó guardado. */
+  /** Entra con el perfil que devuelva Google y devuelve el texto tal cual guardado. */
   async function entrarCon(perfil: unknown) {
     vi.stubGlobal(
       'fetch',
@@ -189,45 +200,30 @@ describe('lo que llega a localStorage', () => {
       ),
     )
     const auth = await cargarAuth()
-    await auth.entrar()
-    return sesionLeida()
+    const usuario = await auth.entrar()
+    return { usuario, guardado: localStorage.getItem(CLAVE) ?? '' }
   }
 
-  it('guarda un perfil con forma normal', async () => {
-    const guardado = await entrarCon({ email: 'ana@example.com', name: "Ana O'Brien-García" })
-    expect(guardado?.usuario).toEqual({ email: 'ana@example.com', nombre: "Ana O'Brien-García" })
+  it('guarda el token y su caducidad, y nada más', async () => {
+    const { guardado } = await entrarCon({ email: 'ana@example.com', name: 'Ana' })
+    expect(Object.keys(JSON.parse(guardado) as object)).toEqual(['token', 'caducaEn'])
   })
 
-  it('no guarda nada si el perfil trae texto con forma inesperada', async () => {
-    // El sitio donde se escribe es el que decide qué se escribe: un nombre con
-    // una etiqueta dentro es un string válido, pero no tiene forma de nombre.
-    expect(
-      await entrarCon({ email: 'ana@example.com', name: '<script>alert(1)</script>' }),
-    ).toBeNull()
-    expect(await entrarCon({ email: 'no es un email', name: 'Ana' })).toBeNull()
+  it('el perfil se usa en memoria pero no se escribe', async () => {
+    const { usuario, guardado } = await entrarCon({ email: 'ana@example.com', name: 'Ana Pérez' })
+
+    expect(usuario).toEqual({ email: 'ana@example.com', nombre: 'Ana Pérez' })
+    expect(guardado).not.toContain('ana@example.com')
+    expect(guardado).not.toContain('Ana Pérez')
   })
 
-  it('no guarda nada si el perfil trae campos con el tipo equivocado', async () => {
-    expect(await entrarCon({ email: 12345, name: { objeto: true } })).toBeNull()
-  })
-
-  it('deja la sesión en memoria aunque no se pueda guardar', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ email: 'no es un email', name: 'Ana' }),
-        } as unknown as Response),
-      ),
-    )
-    const auth = await cargarAuth()
-    await auth.entrar()
-
-    // Nada guardado, pero el token recién pedido sigue sirviendo sin pedir otro.
-    expect(sesionLeida()).toBeNull()
-    expect(await auth.tokenValido()).toBe('token-1')
-    expect(peticiones).toHaveLength(1)
+  it('tampoco escribe un perfil con contenido inesperado', async () => {
+    // Ya no hace falta juzgar si el contenido es aceptable: no se guarda ninguno.
+    const { guardado } = await entrarCon({
+      email: 'ana@example.com',
+      name: '<script>alert(1)</script>',
+    })
+    expect(guardado).not.toContain('<script>')
   })
 })
 
@@ -257,6 +253,6 @@ describe('token vigente', () => {
     auth.invalidarToken()
 
     expect(await auth.tokenValido()).toBe('token-1')
-    expect(peticiones).toEqual([{ prompt: 'none', hint: USUARIO.email }])
+    expect(peticiones).toEqual([{ prompt: 'none', hint: undefined }])
   })
 })
