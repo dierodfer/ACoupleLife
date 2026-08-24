@@ -59,6 +59,8 @@ export interface PickerBuilder {
   addView(vista: DocsView): PickerBuilder
   setOAuthToken(token: string): PickerBuilder
   setDeveloperKey(clave: string): PickerBuilder
+  /** Número de proyecto de Cloud. Sin él no hay acceso a archivos ajenos. */
+  setAppId(appId: string): PickerBuilder
   setTitle(titulo: string): PickerBuilder
   setCallback(callback: (datos: Record<string, unknown>) => void): PickerBuilder
   build(): { setVisible(visible: boolean): void }
