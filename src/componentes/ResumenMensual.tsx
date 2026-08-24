@@ -19,7 +19,15 @@ import {
 import type { Datos, ResumenPersona } from '../lib/tipos'
 import { useStore } from '../store/useStore'
 import { Donut, PuntoSerie } from './Donut'
-import { IconoCerrar, IconoCheck, IconoDeshacer, IconoLapiz, IconoMas, IconoRepetir } from './Iconos'
+import {
+  IconoCerrar,
+  IconoCheck,
+  IconoChevron,
+  IconoDeshacer,
+  IconoLapiz,
+  IconoMas,
+  IconoRepetir,
+} from './Iconos'
 import { SelectorMes } from './SelectorMes'
 import { Boton, EntradaEuros, Fila, FilaLista, Grupo, Tarjeta } from './ui'
 
@@ -50,13 +58,39 @@ export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
           </p>
         )}
 
-        <div className="mt-3 border-t border-borde pt-2 text-left">
-          <Fila concepto="Objetivo conjunto" importe={euros(resumen.objetivo)} />
-          <Fila concepto="Gastos" importe={`− ${euros(resumen.gastos)}`} tono="tenue" />
-          <Fila concepto="Efectivo" importe={`− ${euros(resumen.efectivo)}`} tono="tenue" />
-          <Fila
+        <div className="mt-3 border-t border-borde pt-1 text-left">
+          <FilaConDesglose
+            datos={datos}
+            concepto="Objetivo conjunto"
+            total={resumen.objetivo}
+            porPersona={resumen.porPersona}
+            campo="objetivo"
+          />
+          <FilaConDesglose
+            datos={datos}
+            concepto="Gastos"
+            total={resumen.gastos}
+            porPersona={resumen.porPersona}
+            campo="gastos"
+            signo="− "
+            tono="tenue"
+          />
+          <FilaConDesglose
+            datos={datos}
+            concepto="Efectivo"
+            total={resumen.efectivo}
+            porPersona={resumen.porPersona}
+            campo="efectivo"
+            signo="− "
+            tono="tenue"
+          />
+          <FilaConDesglose
+            datos={datos}
             concepto="Transferido"
-            importe={`− ${euros(resumen.transferencias)}`}
+            total={resumen.transferencias}
+            porPersona={resumen.porPersona}
+            campo="transferencias"
+            signo="− "
             tono="tenue"
           />
         </div>
@@ -67,6 +101,68 @@ export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
       ))}
 
       <Movimientos datos={datos} />
+    </div>
+  )
+}
+
+/**
+ * Fila de la tarjeta del total, desplegable: pulsarla revela cuánto pone cada
+ * persona en ese concepto. Cerrada por defecto porque el total ya responde a
+ * la pregunta de la pareja; el reparto es la de detalle.
+ */
+function FilaConDesglose({
+  datos,
+  concepto,
+  total,
+  porPersona,
+  campo,
+  signo = '',
+  tono,
+}: Readonly<{
+  datos: Datos
+  concepto: string
+  total: number
+  porPersona: ResumenPersona[]
+  campo: 'objetivo' | 'gastos' | 'efectivo' | 'transferencias'
+  signo?: string
+  tono?: 'tenue'
+}>) {
+  const [abierto, setAbierto] = useState(false)
+  const tenue = tono === 'tenue' ? 'text-tenue' : ''
+
+  return (
+    <div>
+      <button
+        type="button"
+        aria-expanded={abierto}
+        onClick={() => setAbierto((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 py-1.5 text-left active:opacity-60"
+      >
+        <span className={`flex min-w-0 items-center gap-1 truncate text-[15px] ${tenue}`}>
+          <IconoChevron
+            className={`h-3.5 w-3.5 shrink-0 text-sutil transition-transform ${abierto ? 'rotate-90' : ''}`}
+          />
+          {concepto}
+        </span>
+        <span className={`cifras shrink-0 text-[15px] ${tenue}`}>
+          {signo}
+          {euros(total)}
+        </span>
+      </button>
+
+      {abierto && (
+        <div className="flex flex-col gap-1 py-1 pl-[1.125rem]">
+          {porPersona.map((p) => (
+            <div key={p.personaId} className="flex items-center justify-between gap-3 text-[13px] text-tenue">
+              <span className="truncate">{nombrePersona(datos, p.personaId)}</span>
+              <span className="cifras shrink-0">
+                {signo}
+                {euros(p[campo])}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -105,6 +201,10 @@ function DesglosePersona({
   const base = baseDelMes(persona)
 
   const tramos = TRAMOS.map((t) => ({ clave: t.clave, valor: persona[t.clave], clase: t.trazo }))
+  // La leyenda solo lista lo que ya existe este mes: un tipo de aportación sin
+  // nada que mostrar no aporta información, y así va apareciendo según se dan
+  // de alta gastos, efectivo o transferencias.
+  const conMovimiento = TRAMOS.filter((t) => persona[t.clave] > 0)
 
   return (
     <Grupo titulo={nombrePersona(datos, persona.personaId)}>
@@ -114,7 +214,10 @@ function DesglosePersona({
         </Donut>
 
         <div className="w-full">
-          {TRAMOS.map((t) => (
+          {conMovimiento.length === 0 && (
+            <p className="py-1.5 text-center text-[13px] text-tenue">Sin movimientos este mes.</p>
+          )}
+          {conMovimiento.map((t) => (
             <Fila
               key={t.clave}
               concepto={
@@ -129,7 +232,6 @@ function DesglosePersona({
                 </span>
               }
               importe={euros(persona[t.clave])}
-              tono={persona[t.clave] > 0 ? 'normal' : 'tenue'}
             />
           ))}
         </div>
