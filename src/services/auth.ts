@@ -249,17 +249,14 @@ export async function reanudarSesion(): Promise<Usuario | null> {
   }
 }
 
-function texto(valor: unknown): string | undefined {
-  return typeof valor === 'string' ? valor : undefined
-}
-
 /**
  * Perfil de Google del dueño de un token concreto.
  *
  * La respuesta es JSON de un servicio externo: se valida su forma con
- * `texto()` en vez de darla por buena con un cast, porque de aquí sale lo que
- * `recordarSesion` escribe en `localStorage`. Mismo principio que `normalizar`
- * aplica al archivo de Drive, aquí para la única otra entrada de datos ajenos.
+ * comprobaciones `typeof` en el sitio, campo a campo, en vez de darla por
+ * buena con un cast, porque de aquí sale lo que `recordarSesion` escribe en
+ * `localStorage`. Mismo principio que `normalizar` aplica al archivo de
+ * Drive, aquí para la única otra entrada de datos ajenos.
  */
 async function perfil(acceso: string): Promise<Usuario> {
   const respuesta = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -269,13 +266,12 @@ async function perfil(acceso: string): Promise<Usuario> {
 
   const bruto: unknown = await respuesta.json()
   const datos = bruto && typeof bruto === 'object' ? (bruto as Record<string, unknown>) : {}
-  const email = texto(datos.email)
-  const nombre = texto(datos.name)
-  return {
-    email: email ?? '',
-    nombre: nombre ?? email ?? 'Usuario',
-    foto: texto(datos.picture),
-  }
+
+  const email = typeof datos.email === 'string' ? datos.email : ''
+  const nombre = typeof datos.name === 'string' ? datos.name : email || 'Usuario'
+  const foto = typeof datos.picture === 'string' ? datos.picture : undefined
+
+  return { email, nombre, foto }
 }
 
 export async function datosUsuario(): Promise<Usuario> {
