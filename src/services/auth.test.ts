@@ -179,6 +179,27 @@ describe('entrar y salir', () => {
   })
 })
 
+describe('perfil de Google', () => {
+  it('no confía en la forma del JSON del servicio antes de guardarlo', async () => {
+    // Lo que llega de fuera puede no tener la forma esperada: un campo con el
+    // tipo equivocado no debe colarse tal cual en lo que se guarda en `localStorage`.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ email: 12345, name: { objeto: true }, picture: null }),
+        } as unknown as Response),
+      ),
+    )
+    const auth = await cargarAuth()
+
+    const esperado = { email: '', nombre: 'Usuario', foto: undefined }
+    expect(await auth.entrar()).toEqual(esperado)
+    expect(sesionLeida()?.usuario).toEqual(esperado)
+  })
+})
+
 describe('token vigente', () => {
   it('reutiliza el guardado sin pedir otro', async () => {
     sesionGuardada(Date.now() + HORA)
