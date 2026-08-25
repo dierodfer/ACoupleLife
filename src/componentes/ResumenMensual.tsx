@@ -43,17 +43,27 @@ export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
     <div className="flex flex-col gap-6">
       <SelectorMes datos={datos} />
 
-      <Tarjeta className="text-center">
-        <p className="text-[13px] font-medium uppercase tracking-[0.06em] text-tenue">
-          Total por transferir
+      <Tarjeta>
+        <p className="text-center text-[13px] font-medium uppercase tracking-[0.06em] text-tenue">
+          Por transferir
         </p>
-        <p
-          className={`cifra-heroe cifras mt-1.5 ${resumen.pendiente > 0 ? '' : 'text-positivo'}`}
-        >
-          {euros(resumen.pendiente)}
-        </p>
+
+        <div className="mt-2 flex">
+          {resumen.porPersona.map((persona, i) => (
+            <div
+              key={persona.personaId}
+              className={`min-w-0 flex-1 px-2 text-center ${i > 0 ? 'border-l border-borde' : ''}`}
+            >
+              <p className="truncate text-[13px] text-tenue">
+                {nombrePersona(datos, persona.personaId)}
+              </p>
+              <PendientePersona persona={persona} />
+            </div>
+          ))}
+        </div>
+
         {resumen.pendiente < 0 && (
-          <p className="mt-1.5 text-[13px] text-tenue">
+          <p className="mt-3 text-center text-[13px] text-tenue">
             Este mes habéis aportado de más. No se arrastra al siguiente.
           </p>
         )}
@@ -103,6 +113,39 @@ export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
       <Movimientos datos={datos} />
     </div>
   )
+}
+
+/**
+ * La cifra por la que se abre la app: no el total de la pareja, sino lo que
+ * le toca a esta persona. Mismo criterio que el centro del anillo de abajo
+ * (`CentroDonut`), para que las dos lecturas del mes digan lo mismo.
+ */
+function PendientePersona({ persona }: Readonly<{ persona: ResumenPersona }>) {
+  if (persona.objetivo <= 0) {
+    return <p className="mt-1 text-[15px] text-tenue">Sin objetivo</p>
+  }
+
+  if (persona.pendiente <= 0) {
+    return (
+      <p className="mt-1 flex items-center justify-center gap-1 text-positivo">
+        <IconoCheck className="h-5 w-5 shrink-0" />
+        <span className="text-[15px] font-medium">Al día</span>
+      </p>
+    )
+  }
+
+  const texto = euros(persona.pendiente)
+  // A dos columnas por tarjeta hay poco ancho: una cifra de miles con céntimos
+  // no cabe al mismo tamaño que una de dos dígitos sin desbordar o cortarse.
+  const tamano = tamanoCifra(texto.length)
+
+  return <p className={`cifras mt-1 truncate font-bold leading-none ${tamano}`}>{texto}</p>
+}
+
+function tamanoCifra(longitud: number): string {
+  if (longitud > 10) return 'text-[18px]'
+  if (longitud > 8) return 'text-[22px]'
+  return 'text-[26px]'
 }
 
 /**
