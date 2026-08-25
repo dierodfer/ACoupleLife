@@ -68,41 +68,8 @@ export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
           </p>
         )}
 
-        <div className="mt-3 border-t border-borde pt-1 text-left">
-          <FilaConDesglose
-            datos={datos}
-            concepto="Objetivo conjunto"
-            total={resumen.objetivo}
-            porPersona={resumen.porPersona}
-            campo="objetivo"
-          />
-          <FilaConDesglose
-            datos={datos}
-            concepto="Gastos"
-            total={resumen.gastos}
-            porPersona={resumen.porPersona}
-            campo="gastos"
-            signo="− "
-            tono="tenue"
-          />
-          <FilaConDesglose
-            datos={datos}
-            concepto="Efectivo"
-            total={resumen.efectivo}
-            porPersona={resumen.porPersona}
-            campo="efectivo"
-            signo="− "
-            tono="tenue"
-          />
-          <FilaConDesglose
-            datos={datos}
-            concepto="Transferido"
-            total={resumen.transferencias}
-            porPersona={resumen.porPersona}
-            campo="transferencias"
-            signo="− "
-            tono="tenue"
-          />
+        <div className="mt-3 border-t border-borde pt-2 text-left">
+          <Fila concepto="Objetivo conjunto" importe={euros(resumen.objetivo)} />
         </div>
       </Tarjeta>
 
@@ -149,29 +116,22 @@ function tamanoCifra(longitud: number): string {
 }
 
 /**
- * Fila de la tarjeta del total, desplegable: pulsarla revela cuánto pone cada
- * persona en ese concepto. Cerrada por defecto porque el total ya responde a
- * la pregunta de la pareja; el reparto es la de detalle.
+ * Fila de "Gastos" de la tarjeta de cada persona, desplegable: pulsarla revela
+ * los gastos concretos del mes -puntuales y recurrentes- que suman ese total.
+ * Solo esta fila lo hace; Efectivo y Transferido son una única aportación cada
+ * uno, sin nada más que desglosar.
  */
-function FilaConDesglose({
+function FilaGastos({
   datos,
-  concepto,
-  total,
-  porPersona,
-  campo,
-  signo = '',
-  tono,
-}: Readonly<{
-  datos: Datos
-  concepto: string
-  total: number
-  porPersona: ResumenPersona[]
-  campo: 'objetivo' | 'gastos' | 'efectivo' | 'transferencias'
-  signo?: string
-  tono?: 'tenue'
-}>) {
+  persona,
+}: Readonly<{ datos: Datos; persona: ResumenPersona }>) {
+  const mes = useStore((s) => s.mes)
   const [abierto, setAbierto] = useState(false)
-  const tenue = tono === 'tenue' ? 'text-tenue' : ''
+
+  const puntuales = listaGastosDelMes(datos, mes).filter((g) => g.personaId === persona.personaId)
+  const recurrentes = listaRecurrentesDelMes(datos, mes).filter(
+    ({ recurrente }) => recurrente.personaId === persona.personaId,
+  )
 
   return (
     <div>
@@ -181,27 +141,34 @@ function FilaConDesglose({
         onClick={() => setAbierto((v) => !v)}
         className="flex w-full items-center justify-between gap-3 py-1.5 text-left active:opacity-60"
       >
-        <span className={`flex min-w-0 items-center gap-1 truncate text-[15px] ${tenue}`}>
+        <span className="flex min-w-0 items-center gap-2 truncate text-[15px]">
+          <PuntoSerie clase="bg-serie-gastos" />
           <IconoChevron
             className={`h-3.5 w-3.5 shrink-0 text-sutil transition-transform ${abierto ? 'rotate-90' : ''}`}
           />
-          {concepto}
+          Gastos
+          {persona.gastosPuntuales > 0 && persona.gastosRecurrentes > 0 && (
+            <span className="truncate text-[13px] text-tenue">
+              {euros(persona.gastosPuntuales)} + {euros(persona.gastosRecurrentes)} fijos
+            </span>
+          )}
         </span>
-        <span className={`cifras shrink-0 text-[15px] ${tenue}`}>
-          {signo}
-          {euros(total)}
-        </span>
+        <span className="cifras shrink-0 text-[15px]">{euros(persona.gastos)}</span>
       </button>
 
       {abierto && (
         <div className="flex flex-col gap-1 py-1 pl-[1.125rem]">
-          {porPersona.map((p) => (
-            <div key={p.personaId} className="flex items-center justify-between gap-3 text-[13px] text-tenue">
-              <span className="truncate">{nombrePersona(datos, p.personaId)}</span>
-              <span className="cifras shrink-0">
-                {signo}
-                {euros(p[campo])}
-              </span>
+          {recurrentes.map(({ recurrente, importe }) => (
+            <div key={recurrente.id} className="flex items-center gap-2 text-[13px] text-tenue">
+              <IconoRepetir className="h-3 w-3 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">{recurrente.concepto || 'Recurrente'}</span>
+              <span className="cifras shrink-0">{euros(importe)}</span>
+            </div>
+          ))}
+          {puntuales.map((gasto) => (
+            <div key={gasto.id} className="flex items-center justify-between gap-2 text-[13px] text-tenue">
+              <span className="min-w-0 truncate">{gasto.concepto || 'Gasto'}</span>
+              <span className="cifras shrink-0">{euros(gasto.importe)}</span>
             </div>
           ))}
         </div>
@@ -260,23 +227,22 @@ function DesglosePersona({
           {conMovimiento.length === 0 && (
             <p className="py-1.5 text-center text-[13px] text-tenue">Sin movimientos este mes.</p>
           )}
-          {conMovimiento.map((t) => (
-            <Fila
-              key={t.clave}
-              concepto={
-                <span className="flex items-center gap-2">
-                  <PuntoSerie clase={t.punto} />
-                  {t.etiqueta}
-                  {t.clave === 'gastos' && persona.gastosPuntuales > 0 && persona.gastosRecurrentes > 0 && (
-                    <span className="truncate text-[13px] text-tenue">
-                      {euros(persona.gastosPuntuales)} + {euros(persona.gastosRecurrentes)} fijos
-                    </span>
-                  )}
-                </span>
-              }
-              importe={euros(persona[t.clave])}
-            />
-          ))}
+          {conMovimiento.map((t) =>
+            t.clave === 'gastos' ? (
+              <FilaGastos key={t.clave} datos={datos} persona={persona} />
+            ) : (
+              <Fila
+                key={t.clave}
+                concepto={
+                  <span className="flex items-center gap-2">
+                    <PuntoSerie clase={t.punto} />
+                    {t.etiqueta}
+                  </span>
+                }
+                importe={euros(persona[t.clave])}
+              />
+            ),
+          )}
         </div>
       </div>
 
