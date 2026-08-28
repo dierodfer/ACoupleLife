@@ -459,9 +459,7 @@ export function Info({ children }: Readonly<{ children: ReactNode }>) {
   )
 }
 
-// Umbrales para soltar un arrastre del tirador: basta con superar uno de los
-// dos, como en las hojas de iOS (bajar bastante, o soltar con un golpe seco
-// aunque no se haya bajado mucho).
+// Umbrales para cerrar al soltar: basta con superar uno de los dos.
 const ARRASTRE_CIERRE_PX = 120
 const ARRASTRE_CIERRE_VELOCIDAD = 0.5 // px/ms
 
@@ -472,9 +470,8 @@ interface ArrastreModal {
 
 /**
  * Hoja inferior: entra desde abajo con tirador, como los modales de iOS. En
- * pantallas anchas se centra como tarjeta. El tirador (y la cabecera, si la
- * hay) se pueden arrastrar hacia abajo para cerrarla, que es lo que ese
- * tirador lleva prometiendo desde el principio.
+ * pantallas anchas se centra como tarjeta. El tirador y la cabecera se pueden
+ * arrastrar hacia abajo para cerrarla.
  */
 export function Modal({
   abierto,
