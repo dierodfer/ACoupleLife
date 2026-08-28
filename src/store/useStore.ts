@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { mesActual } from '../lib/fechas'
+import { mesPorDefecto } from '../lib/fechas'
 import { datosIniciales, nuevoId } from '../lib/esquema'
 import { sellar, vincularEmailPersona } from '../lib/mutaciones'
 import { aplicarTema, temaGuardado, type Tema } from '../lib/tema'
@@ -142,7 +142,7 @@ export const useStore = create<Estado>((set, get) => {
     fileId: localStorage.getItem(CLAVE_ARCHIVO),
     version: null,
     datos: null,
-    mes: mesActual(),
+    mes: mesPorDefecto(),
     pestana: 'mes',
     historial: [],
     modalGasto: MODAL_GASTO_CERRADO,

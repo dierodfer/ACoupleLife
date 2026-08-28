@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
+  PointerEvent as EventoPuntero,
   ReactNode,
   SelectHTMLAttributes,
 } from 'react'
@@ -458,9 +459,22 @@ export function Info({ children }: Readonly<{ children: ReactNode }>) {
   )
 }
 
+// Umbrales para soltar un arrastre del tirador: basta con superar uno de los
+// dos, como en las hojas de iOS (bajar bastante, o soltar con un golpe seco
+// aunque no se haya bajado mucho).
+const ARRASTRE_CIERRE_PX = 120
+const ARRASTRE_CIERRE_VELOCIDAD = 0.5 // px/ms
+
+interface ArrastreModal {
+  inicioY: number
+  inicioT: number
+}
+
 /**
  * Hoja inferior: entra desde abajo con tirador, como los modales de iOS. En
- * pantallas anchas se centra como tarjeta.
+ * pantallas anchas se centra como tarjeta. El tirador (y la cabecera, si la
+ * hay) se pueden arrastrar hacia abajo para cerrarla, que es lo que ese
+ * tirador lleva prometiendo desde el principio.
  */
 export function Modal({
   abierto,
@@ -476,7 +490,40 @@ export function Modal({
   subtitulo?: string
   children: ReactNode
 }>) {
+  const arrastre = useRef<ArrastreModal | null>(null)
+  const [bajada, setBajada] = useState(0)
+  const [arrastrando, setArrastrando] = useState(false)
+
   if (!abierto) return null
+
+  // Desde el propio tirador o el título se arrastra; desde un botón de la
+  // cabecera (cerrar) no, para no robarle el toque a su propio `onClick`.
+  function empezarArrastre(e: EventoPuntero<HTMLDivElement>) {
+    if ((e.target as HTMLElement).closest('button')) return
+    arrastre.current = { inicioY: e.clientY, inicioT: performance.now() }
+    setArrastrando(true)
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  function moverArrastre(e: EventoPuntero<HTMLDivElement>) {
+    if (!arrastre.current) return
+    setBajada(Math.max(0, e.clientY - arrastre.current.inicioY))
+  }
+
+  function soltarArrastre(e: EventoPuntero<HTMLDivElement>) {
+    const info = arrastre.current
+    arrastre.current = null
+    setArrastrando(false)
+    if (!info) return
+
+    const bajadaFinal = Math.max(0, e.clientY - info.inicioY)
+    const velocidad = bajadaFinal / Math.max(performance.now() - info.inicioT, 1)
+    if (bajadaFinal > ARRASTRE_CIERRE_PX || velocidad > ARRASTRE_CIERRE_VELOCIDAD) {
+      onCerrar()
+    } else {
+      setBajada(0)
+    }
+  }
 
   return (
     <div
@@ -487,25 +534,38 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
+        style={{
+          transform: bajada ? `translateY(${bajada}px)` : undefined,
+          opacity: bajada ? Math.max(1 - bajada / 400, 0.5) : 1,
+          transition: arrastrando ? 'none' : 'transform 300ms cubic-bezier(0.32, 0.72, 0, 1)',
+        }}
         className="max-h-[90dvh] w-full overflow-y-auto rounded-t-hoja bg-fondo px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 sm:max-w-md sm:rounded-hoja"
       >
-        <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-sutil" aria-hidden />
-        {titulo && (
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <div>
-              <h2 className="titulo-pantalla">{titulo}</h2>
-              {subtitulo && <p className="mt-0.5 text-[13px] text-tenue">{subtitulo}</p>}
+        <div
+          className="-mx-4 touch-none px-4 active:cursor-grabbing"
+          onPointerDown={empezarArrastre}
+          onPointerMove={moverArrastre}
+          onPointerUp={soltarArrastre}
+          onPointerCancel={soltarArrastre}
+        >
+          <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-sutil" aria-hidden />
+          {titulo && (
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="titulo-pantalla">{titulo}</h2>
+                {subtitulo && <p className="mt-0.5 text-[13px] text-tenue">{subtitulo}</p>}
+              </div>
+              <button
+                type="button"
+                aria-label="Cerrar"
+                onClick={onCerrar}
+                className="shrink-0 rounded-full bg-relleno p-1.5 text-tenue active:opacity-60"
+              >
+                <IconoCerrar className="h-4 w-4" />
+              </button>
             </div>
-            <button
-              type="button"
-              aria-label="Cerrar"
-              onClick={onCerrar}
-              className="shrink-0 rounded-full bg-relleno p-1.5 text-tenue active:opacity-60"
-            >
-              <IconoCerrar className="h-4 w-4" />
-            </button>
-          </div>
-        )}
+          )}
+        </div>
         {children}
       </div>
     </div>

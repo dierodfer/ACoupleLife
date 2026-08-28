@@ -22,7 +22,14 @@ export function SelectorMes({ datos }: Readonly<{ datos: Datos }>) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2">
+      {/*
+       * Fija en la parte de arriba de la pantalla, como la barra de título de
+       * iOS al desplazarse: el mes que se está viendo no debe perderse de
+       * vista aunque se baje por el resto del resumen. `-mx-4`/`px-4` la
+       * extiende hasta los bordes de la pantalla (el contenedor tiene
+       * márgenes), y el desenfoque dejar ver algo del contenido por debajo.
+       */}
+      <div className="sticky top-0 z-30 -mx-4 flex items-center justify-between gap-2 bg-fondo/85 px-4 py-1.5 backdrop-blur-xl">
         <button
           type="button"
           aria-label="Mes anterior"
