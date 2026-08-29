@@ -78,6 +78,18 @@ export function mesActual(hoy: Date = new Date()): MesKey {
   return mesKey(hoy.getFullYear(), hoy.getMonth() + 1)
 }
 
+/**
+ * Mes que se ve al abrir la app. Los primeros días del mes todavía se está
+ * cerrando el anterior, pero a partir del día 7 lo que importa es preparar el
+ * mes siguiente, así que pasa a ser ese el que se abre por defecto. El mes
+ * «de verdad» (`mesActual`) no cambia: sigue siendo el que se marca con acento
+ * en el calendario, esté cual esté seleccionado.
+ */
+export function mesPorDefecto(hoy: Date = new Date()): MesKey {
+  const actual = mesActual(hoy)
+  return hoy.getDate() >= 7 ? sumaMeses(actual, 1) : actual
+}
+
 /** Fecha de hoy como `AAAA-MM-DD`, en hora local. */
 export function hoyKey(hoy: Date = new Date()): FechaKey {
   const mm = String(hoy.getMonth() + 1).padStart(2, '0')

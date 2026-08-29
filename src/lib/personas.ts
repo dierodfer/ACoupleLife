@@ -17,3 +17,12 @@ export function personaDeUsuario(datos: Datos, email: string | undefined): Perso
   if (!email) return undefined
   return datos.personas.find((p) => p.email === email)
 }
+
+export function personaActiva(
+  datos: Datos,
+  seleccionada: PersonaId | null,
+  email: string | undefined,
+): PersonaId {
+  if (seleccionada && datos.personas.some((p) => p.id === seleccionada)) return seleccionada
+  return personaDeUsuario(datos, email)?.id ?? datos.personas[0]?.id ?? ''
+}

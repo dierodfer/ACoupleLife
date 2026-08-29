@@ -1,9 +1,9 @@
 import { create } from 'zustand'
-import { mesActual } from '../lib/fechas'
+import { mesPorDefecto } from '../lib/fechas'
 import { datosIniciales, nuevoId } from '../lib/esquema'
 import { sellar, vincularEmailPersona } from '../lib/mutaciones'
 import { aplicarTema, temaGuardado, type Tema } from '../lib/tema'
-import type { Datos, MesKey } from '../lib/tipos'
+import type { Datos, MesKey, PersonaId } from '../lib/tipos'
 import type { Usuario } from '../services/auth'
 import { auth, drive } from '../services/backend'
 
@@ -30,13 +30,14 @@ export type EstadoApp =
  * cualquier sitio. `objetivos` es una subpantalla: no tiene botón propio en la
  * barra inferior y se llega a ella desde Ajustes o desde el resumen mensual.
  */
-export type Pestana = 'mes' | 'anio' | 'ajustes' | 'objetivos'
+export type Pestana = 'mes' | 'anio' | 'ajustes' | 'objetivos' | 'movimientos'
 
 export const ETIQUETAS_PESTANA: Record<Pestana, string> = {
   mes: 'Mes',
   anio: 'Año',
   ajustes: 'Ajustes',
   objetivos: 'Objetivo',
+  movimientos: 'Movimientos',
 }
 
 interface Estado {
@@ -49,6 +50,8 @@ interface Estado {
   pestana: Pestana
   /** Pantallas por las que se ha pasado, para que «atrás» vuelva a la correcta. */
   historial: Pestana[]
+  /** Persona cuyos movimientos se están editando; `null` = la del usuario. */
+  personaEditada: PersonaId | null
   /**
    * Modal de alta/edición de gasto (puntual o recurrente). Vive aquí porque se
    * abre tanto desde la pantalla principal como desde Ajustes: es el mismo
@@ -87,6 +90,9 @@ interface Estado {
   volver: () => void
   /** Salto atómico a un mes, sin dejar entrada en el historial de pantallas. */
   verMes: (mes: MesKey) => void
+  /** Abre la edición de movimientos del mes para una persona. */
+  editarMovimientos: (personaId: PersonaId) => void
+  elegirPersonaEditada: (personaId: PersonaId) => void
   /** Abre el modal de gasto. Sin opciones: alta de gasto puntual. */
   abrirModalGasto: (opciones?: { editandoId?: string; tipoInicial?: 'puntual' | 'recurrente' }) => void
   cerrarModalGasto: () => void
@@ -142,9 +148,10 @@ export const useStore = create<Estado>((set, get) => {
     fileId: localStorage.getItem(CLAVE_ARCHIVO),
     version: null,
     datos: null,
-    mes: mesActual(),
+    mes: mesPorDefecto(),
     pestana: 'mes',
     historial: [],
+    personaEditada: null,
     modalGasto: MODAL_GASTO_CERRADO,
     modalTransferencia: false,
     modalEfectivo: false,
@@ -344,6 +351,15 @@ export const useStore = create<Estado>((set, get) => {
 
     verMes(mes) {
       set({ mes, pestana: 'mes', historial: [] })
+    },
+
+    editarMovimientos(personaId) {
+      set({ personaEditada: personaId })
+      get().abrirPestana('movimientos')
+    },
+
+    elegirPersonaEditada(personaId) {
+      set({ personaEditada: personaId })
     },
 
     abrirModalGasto(opciones) {

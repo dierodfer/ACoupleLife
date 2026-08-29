@@ -3,8 +3,8 @@ import { liquidacionDelMes } from '../lib/calculo'
 import { etiquetaMes, hoyKey, mesDeFecha } from '../lib/fechas'
 import { euros, importeEditable, leeImporte } from '../lib/formato'
 import { anadirTransferencia } from '../lib/mutaciones'
-import { personaDeUsuario } from '../lib/personas'
-import type { Datos } from '../lib/tipos'
+import { nombrePersona, personaActiva } from '../lib/personas'
+import type { Datos, PersonaId } from '../lib/tipos'
 import { useStore } from '../store/useStore'
 import { IconoCheck } from './Iconos'
 import { Boton, Campo, EntradaEuros, Modal } from './ui'
@@ -12,26 +12,36 @@ import { Boton, Campo, EntradaEuros, Modal } from './ui'
 /** Modal de alta de transferencia, siempre para el mes que se está viendo. */
 export function ModalTransferencia({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
+  const usuario = useStore((s) => s.usuario)
+  const personaEditada = useStore((s) => s.personaEditada)
   const abierto = useStore((s) => s.modalTransferencia)
   const cerrar = useStore((s) => s.cerrarModalTransferencia)
 
+  const personaId = personaActiva(datos, personaEditada, usuario?.email)
+
   return (
-    <Modal abierto={abierto} onCerrar={cerrar} titulo="Añadir transferencia" subtitulo={etiquetaMes(mes)}>
-      <FormularioTransferencia datos={datos} />
+    <Modal
+      abierto={abierto}
+      onCerrar={cerrar}
+      titulo="Añadir transferencia"
+      subtitulo={`${etiquetaMes(mes)} · ${nombrePersona(datos, personaId)}`}
+    >
+      <FormularioTransferencia datos={datos} personaId={personaId} />
     </Modal>
   )
 }
 
-function FormularioTransferencia({ datos }: Readonly<{ datos: Datos }>) {
+function FormularioTransferencia({
+  datos,
+  personaId,
+}: Readonly<{ datos: Datos; personaId: PersonaId }>) {
   const mes = useStore((s) => s.mes)
   const aplicar = useStore((s) => s.aplicar)
-  const usuario = useStore((s) => s.usuario)
   const cerrar = useStore((s) => s.cerrarModalTransferencia)
   const [importe, setImporte] = useState('')
   const [errorImporte, setErrorImporte] = useState(false)
   const [completa, setCompleta] = useState(false)
 
-  const personaId = personaDeUsuario(datos, usuario?.email)?.id ?? datos.personas[0]?.id ?? ''
   const pendiente =
     liquidacionDelMes(datos, mes).find((l) => l.personaId === personaId)?.pendiente ?? 0
 

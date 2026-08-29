@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { etiquetaMes } from '../lib/fechas'
 import { importeEditable, leeImporte } from '../lib/formato'
 import { anadirGasto, eliminarRecurrente, guardarRecurrente } from '../lib/mutaciones'
-import { personaDeUsuario } from '../lib/personas'
+import { nombrePersona, personaActiva } from '../lib/personas'
 import type { Datos, PersonaId } from '../lib/tipos'
 import { useStore } from '../store/useStore'
 import { SelectorRangoMeses } from './SelectorRangoMeses'
@@ -30,6 +30,8 @@ function pieAjustes(editando: boolean, ajustes: number): string | undefined {
  */
 export function ModalGasto({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
+  const usuario = useStore((s) => s.usuario)
+  const personaEditada = useStore((s) => s.personaEditada)
   const modalGasto = useStore((s) => s.modalGasto)
   const cerrarModalGasto = useStore((s) => s.cerrarModalGasto)
   const [tipo, setTipo] = useState<Tipo>(modalGasto.tipoInicial)
@@ -38,16 +40,21 @@ export function ModalGasto({ datos }: Readonly<{ datos: Datos }>) {
     ? datos.recurrentes.find((r) => r.id === modalGasto.editandoId)
     : undefined
 
+  const personaInicial = personaActiva(datos, personaEditada, usuario?.email)
   const titulo = tituloModal(Boolean(editando), tipo)
   // Un gasto puntual queda archivado en el mes que se está viendo; un
   // recurrente tiene su propio rango, así que el mes no aplica igual.
-  const subtitulo = !editando && tipo === 'puntual' ? etiquetaMes(mes) : undefined
+  const subtitulo =
+    !editando && tipo === 'puntual'
+      ? `${etiquetaMes(mes)} · ${nombrePersona(datos, personaInicial)}`
+      : undefined
 
   return (
     <Modal abierto={modalGasto.abierto} onCerrar={cerrarModalGasto} titulo={titulo} subtitulo={subtitulo}>
       <FormularioGasto
         datos={datos}
         editandoId={modalGasto.editandoId}
+        personaInicial={personaInicial}
         tipo={tipo}
         setTipo={setTipo}
       />
@@ -58,25 +65,24 @@ export function ModalGasto({ datos }: Readonly<{ datos: Datos }>) {
 function FormularioGasto({
   datos,
   editandoId,
+  personaInicial,
   tipo,
   setTipo,
 }: Readonly<{
   datos: Datos
   editandoId: string | null
+  personaInicial: PersonaId
   tipo: Tipo
   setTipo: (tipo: Tipo) => void
 }>) {
   const mes = useStore((s) => s.mes)
   const aplicar = useStore((s) => s.aplicar)
   const cerrarModalGasto = useStore((s) => s.cerrarModalGasto)
-  const usuario = useStore((s) => s.usuario)
 
   const recurrente = editandoId ? datos.recurrentes.find((r) => r.id === editandoId) : undefined
   const editando = Boolean(recurrente)
 
-  const [personaId, setPersonaId] = useState<PersonaId>(
-    recurrente?.personaId ?? personaDeUsuario(datos, usuario?.email)?.id ?? datos.personas[0]?.id ?? '',
-  )
+  const [personaId, setPersonaId] = useState<PersonaId>(recurrente?.personaId ?? personaInicial)
   const [concepto, setConcepto] = useState(recurrente?.concepto ?? '')
   const [importe, setImporte] = useState(recurrente ? importeEditable(recurrente.importe) : '')
   const [errorImporte, setErrorImporte] = useState(false)

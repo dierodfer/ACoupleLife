@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { etiquetaMes } from '../lib/fechas'
 import { leeImporte } from '../lib/formato'
 import { guardarEfectivo } from '../lib/mutaciones'
-import { personaDeUsuario } from '../lib/personas'
-import type { Datos } from '../lib/tipos'
+import { nombrePersona, personaActiva } from '../lib/personas'
+import type { Datos, PersonaId } from '../lib/tipos'
 import { useStore } from '../store/useStore'
 import { SelectorRangoMeses } from './SelectorRangoMeses'
 import { Boton, Campo, EntradaEuros, Modal } from './ui'
@@ -11,20 +11,28 @@ import { Boton, Campo, EntradaEuros, Modal } from './ui'
 /** Modal de alta de efectivo, con «desde» precargado en el mes que se está viendo. */
 export function ModalEfectivo({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
+  const usuario = useStore((s) => s.usuario)
+  const personaEditada = useStore((s) => s.personaEditada)
   const abierto = useStore((s) => s.modalEfectivo)
   const cerrar = useStore((s) => s.cerrarModalEfectivo)
 
+  const personaId = personaActiva(datos, personaEditada, usuario?.email)
+
   return (
-    <Modal abierto={abierto} onCerrar={cerrar} titulo="Añadir efectivo" subtitulo={etiquetaMes(mes)}>
-      <FormularioEfectivo datos={datos} />
+    <Modal
+      abierto={abierto}
+      onCerrar={cerrar}
+      titulo="Añadir efectivo"
+      subtitulo={`${etiquetaMes(mes)} · ${nombrePersona(datos, personaId)}`}
+    >
+      <FormularioEfectivo personaId={personaId} />
     </Modal>
   )
 }
 
-function FormularioEfectivo({ datos }: Readonly<{ datos: Datos }>) {
+function FormularioEfectivo({ personaId }: Readonly<{ personaId: PersonaId }>) {
   const mes = useStore((s) => s.mes)
   const aplicar = useStore((s) => s.aplicar)
-  const usuario = useStore((s) => s.usuario)
   const cerrar = useStore((s) => s.cerrarModalEfectivo)
   const [importe, setImporte] = useState('')
   const [errorImporte, setErrorImporte] = useState(false)
@@ -37,7 +45,6 @@ function FormularioEfectivo({ datos }: Readonly<{ datos: Datos }>) {
       setErrorImporte(true)
       return
     }
-    const personaId = personaDeUsuario(datos, usuario?.email)?.id ?? datos.personas[0]?.id ?? ''
     aplicar((d) => guardarEfectivo(d, { personaId, importe: cantidad, desde, hasta: hasta || null }))
     cerrar()
   }
