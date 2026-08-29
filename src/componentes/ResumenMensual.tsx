@@ -7,29 +7,15 @@ import {
   listaTransferenciasDelMes,
   resumenMes,
 } from '../lib/calculo'
-import { etiquetaMes, partesMes } from '../lib/fechas'
-import { euros, fechaCorta, importeEditable, leeImporte } from '../lib/formato'
+import { etiquetaMes } from '../lib/fechas'
+import { euros, fechaCorta } from '../lib/formato'
 import { nombrePersona } from '../lib/personas'
-import {
-  eliminarEfectivo,
-  eliminarGasto,
-  eliminarTransferencia,
-  fijarOverrideRecurrente,
-} from '../lib/mutaciones'
-import type { Datos, ResumenPersona } from '../lib/tipos'
+import type { Datos, MesKey, PersonaId, ResumenPersona } from '../lib/tipos'
 import { useStore } from '../store/useStore'
 import { Donut, PuntoSerie } from './Donut'
-import {
-  IconoCerrar,
-  IconoCheck,
-  IconoChevron,
-  IconoDeshacer,
-  IconoLapiz,
-  IconoMas,
-  IconoRepetir,
-} from './Iconos'
+import { IconoCheck, IconoChevron, IconoRepetir } from './Iconos'
 import { SelectorMes } from './SelectorMes'
-import { Boton, EntradaEuros, Fila, FilaLista, Grupo, Tarjeta } from './ui'
+import { Fila, FilaLista, Grupo, Tarjeta } from './ui'
 
 /**
  * Pantalla principal. Responde a la única pregunta que importa: cuánto tiene que
@@ -76,8 +62,6 @@ export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
       {resumen.porPersona.map((persona) => (
         <DesglosePersona key={persona.personaId} datos={datos} persona={persona} />
       ))}
-
-      <Movimientos datos={datos} />
     </div>
   )
 }
@@ -116,68 +100,6 @@ function tamanoCifra(longitud: number): string {
 }
 
 /**
- * Fila de "Gastos" de la tarjeta de cada persona, desplegable: pulsarla revela
- * los gastos concretos del mes -puntuales y recurrentes- que suman ese total.
- * Solo esta fila lo hace; Efectivo y Transferido son una única aportación cada
- * uno, sin nada más que desglosar.
- */
-function FilaGastos({
-  datos,
-  persona,
-}: Readonly<{ datos: Datos; persona: ResumenPersona }>) {
-  const mes = useStore((s) => s.mes)
-  const [abierto, setAbierto] = useState(false)
-
-  const puntuales = listaGastosDelMes(datos, mes).filter((g) => g.personaId === persona.personaId)
-  const recurrentes = listaRecurrentesDelMes(datos, mes).filter(
-    ({ recurrente }) => recurrente.personaId === persona.personaId,
-  )
-
-  return (
-    <div>
-      <button
-        type="button"
-        aria-expanded={abierto}
-        onClick={() => setAbierto((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 py-1.5 text-left active:opacity-60"
-      >
-        <span className="flex min-w-0 items-center gap-2 truncate text-[15px]">
-          <PuntoSerie clase="bg-serie-gastos" />
-          <IconoChevron
-            className={`h-3.5 w-3.5 shrink-0 text-sutil transition-transform ${abierto ? 'rotate-90' : ''}`}
-          />
-          Gastos
-          {persona.gastosPuntuales > 0 && persona.gastosRecurrentes > 0 && (
-            <span className="truncate text-[13px] text-tenue">
-              {euros(persona.gastosPuntuales)} + {euros(persona.gastosRecurrentes)} fijos
-            </span>
-          )}
-        </span>
-        <span className="cifras shrink-0 text-[15px]">{euros(persona.gastos)}</span>
-      </button>
-
-      {abierto && (
-        <div className="flex flex-col gap-1 py-1 pl-[1.125rem]">
-          {recurrentes.map(({ recurrente, importe }) => (
-            <div key={recurrente.id} className="flex items-center gap-2 text-[13px] text-tenue">
-              <IconoRepetir className="h-3 w-3 shrink-0" />
-              <span className="min-w-0 flex-1 truncate">{recurrente.concepto || 'Recurrente'}</span>
-              <span className="cifras shrink-0">{euros(importe)}</span>
-            </div>
-          ))}
-          {puntuales.map((gasto) => (
-            <div key={gasto.id} className="flex items-center justify-between gap-2 text-[13px] text-tenue">
-              <span className="min-w-0 truncate">{gasto.concepto || 'Gasto'}</span>
-              <span className="cifras shrink-0">{euros(gasto.importe)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-/**
  * Cómo se reparte el anillo. El orden es el mismo que el de la leyenda y el del
  * desglose de la pareja de arriba, para que los tres se lean igual. Las clases
  * van escritas enteras porque Tailwind las busca literalmente en el código: una
@@ -199,6 +121,142 @@ const TRAMOS = [
   },
 ] as const
 
+type ClaveTramo = (typeof TRAMOS)[number]['clave']
+
+interface DetalleTramo {
+  id: string
+  texto: string
+  importe: number
+  repetido?: boolean
+}
+
+function detallesGastos(datos: Datos, mes: MesKey, personaId: PersonaId): DetalleTramo[] {
+  const recurrentes = listaRecurrentesDelMes(datos, mes)
+    .filter(({ recurrente, importe }) => recurrente.personaId === personaId && importe > 0)
+    .map(({ recurrente, importe }) => ({
+      id: recurrente.id,
+      texto: recurrente.concepto || 'Recurrente',
+      importe,
+      repetido: true,
+    }))
+
+  const puntuales = listaGastosDelMes(datos, mes)
+    .filter((g) => g.personaId === personaId)
+    .map((g) => ({ id: g.id, texto: g.concepto || 'Gasto', importe: g.importe }))
+
+  return [...recurrentes, ...puntuales]
+}
+
+function detallesEfectivo(datos: Datos, mes: MesKey, personaId: PersonaId): DetalleTramo[] {
+  return listaEfectivoDelMes(datos, mes)
+    .filter((e) => e.personaId === personaId)
+    .map((e) => ({
+      id: e.id,
+      texto: `${etiquetaMes(e.desde)} – ${e.hasta ? etiquetaMes(e.hasta) : 'sin fin'}`,
+      importe: e.importe,
+    }))
+}
+
+function detallesTransferencias(datos: Datos, mes: MesKey, personaId: PersonaId): DetalleTramo[] {
+  return listaTransferenciasDelMes(datos, mes)
+    .filter((t) => t.personaId === personaId)
+    .map((t) => ({ id: t.id, texto: fechaCorta(t.fecha), importe: t.importe }))
+}
+
+function detallesDelTramo(
+  datos: Datos,
+  mes: MesKey,
+  personaId: PersonaId,
+  clave: ClaveTramo,
+): DetalleTramo[] {
+  if (clave === 'gastos') return detallesGastos(datos, mes, personaId)
+  if (clave === 'efectivo') return detallesEfectivo(datos, mes, personaId)
+  return detallesTransferencias(datos, mes, personaId)
+}
+
+function EtiquetaTramo({
+  punto,
+  etiqueta,
+  resumen,
+  abierto,
+}: Readonly<{
+  punto: string
+  etiqueta: string
+  resumen?: string
+  abierto?: boolean
+}>) {
+  return (
+    <span className="flex min-w-0 items-center gap-2 truncate text-[15px]">
+      <PuntoSerie clase={punto} />
+      {abierto !== undefined && (
+        <IconoChevron
+          className={`h-3.5 w-3.5 shrink-0 text-sutil transition-transform ${
+            abierto ? 'rotate-90' : ''
+          }`}
+        />
+      )}
+      {etiqueta}
+      {resumen && <span className="truncate text-[13px] text-tenue">{resumen}</span>}
+    </span>
+  )
+}
+
+function FilaTramo({
+  punto,
+  etiqueta,
+  total,
+  resumen,
+  detalles,
+}: Readonly<{
+  punto: string
+  etiqueta: string
+  total: number
+  resumen?: string
+  detalles: DetalleTramo[]
+}>) {
+  const [abierto, setAbierto] = useState(false)
+
+  if (detalles.length <= 1) {
+    return (
+      <Fila
+        concepto={<EtiquetaTramo punto={punto} etiqueta={etiqueta} resumen={resumen} />}
+        importe={euros(total)}
+      />
+    )
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        aria-expanded={abierto}
+        onClick={() => setAbierto((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 py-1.5 text-left active:opacity-60"
+      >
+        <EtiquetaTramo punto={punto} etiqueta={etiqueta} resumen={resumen} abierto={abierto} />
+        <span className="cifras shrink-0 text-[15px]">{euros(total)}</span>
+      </button>
+
+      {abierto && (
+        <div className="flex flex-col gap-1 py-1 pl-[1.125rem]">
+          {detalles.map((d) => (
+            <div key={d.id} className="flex items-center gap-2 text-[13px] text-tenue">
+              {d.repetido && <IconoRepetir className="h-3 w-3 shrink-0" />}
+              <span className="min-w-0 flex-1 truncate">{d.texto}</span>
+              <span className="cifras shrink-0">{euros(d.importe)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function resumenGastos(persona: ResumenPersona): string | undefined {
+  if (persona.gastosPuntuales <= 0 || persona.gastosRecurrentes <= 0) return undefined
+  return `${euros(persona.gastosPuntuales)} + ${euros(persona.gastosRecurrentes)} fijos`
+}
+
 /**
  * El mes de una persona en un anillo: cuánto de su objetivo cubre ya cada tipo
  * de aportación y cuánto queda por transferir, que es el hueco sin pintar.
@@ -207,7 +265,9 @@ function DesglosePersona({
   datos,
   persona,
 }: Readonly<{ datos: Datos; persona: ResumenPersona }>) {
+  const mes = useStore((s) => s.mes)
   const abrirPestana = useStore((s) => s.abrirPestana)
+  const editarMovimientos = useStore((s) => s.editarMovimientos)
   const base = baseDelMes(persona)
 
   const tramos = TRAMOS.map((t) => ({ clave: t.clave, valor: persona[t.clave], clase: t.trazo }))
@@ -220,29 +280,27 @@ function DesglosePersona({
     <Grupo titulo={nombrePersona(datos, persona.personaId)}>
       <div className="flex flex-col items-center gap-4 px-4 pb-1 pt-4">
         <Donut tramos={tramos} base={base} etiqueta={etiquetaDonut(datos, persona)}>
-          <CentroDonut base={base} pendiente={persona.pendiente} />
+          <CentroDonut
+            base={base}
+            objetivo={persona.objetivo}
+            pendiente={persona.pendiente}
+          />
         </Donut>
 
         <div className="w-full">
           {conMovimiento.length === 0 && (
             <p className="py-1.5 text-center text-[13px] text-tenue">Sin movimientos este mes.</p>
           )}
-          {conMovimiento.map((t) =>
-            t.clave === 'gastos' ? (
-              <FilaGastos key={t.clave} datos={datos} persona={persona} />
-            ) : (
-              <Fila
-                key={t.clave}
-                concepto={
-                  <span className="flex items-center gap-2">
-                    <PuntoSerie clase={t.punto} />
-                    {t.etiqueta}
-                  </span>
-                }
-                importe={euros(persona[t.clave])}
-              />
-            ),
-          )}
+          {conMovimiento.map((t) => (
+            <FilaTramo
+              key={t.clave}
+              punto={t.punto}
+              etiqueta={t.etiqueta}
+              total={persona[t.clave]}
+              resumen={t.clave === 'gastos' ? resumenGastos(persona) : undefined}
+              detalles={detallesDelTramo(datos, mes, persona.personaId, t.clave)}
+            />
+          ))}
         </div>
       </div>
 
@@ -251,19 +309,30 @@ function DesglosePersona({
         valor={euros(persona.objetivo)}
         onClick={() => abrirPestana('objetivos')}
       />
+
+      <FilaLista
+        titulo="Movimientos"
+        detalle="Gastos, efectivo y transferencias"
+        onClick={() => editarMovimientos(persona.personaId)}
+      />
     </Grupo>
   )
 }
 
 /** El dato que resume el anillo, en su hueco central. */
-function CentroDonut({ base, pendiente }: Readonly<{ base: number; pendiente: number }>) {
+function CentroDonut({
+  base,
+  objetivo,
+  pendiente,
+}: Readonly<{ base: number; objetivo: number; pendiente: number }>) {
   if (base === 0) return <span className="text-[15px] text-tenue">Sin objetivo</span>
 
   if (pendiente <= 0) {
     return (
       <>
-        <IconoCheck className="h-7 w-7 text-positivo" />
-        <span className="text-[15px] font-medium text-positivo">Al día</span>
+        <IconoCheck className="h-6 w-6 text-positivo" />
+        <span className="text-[15px] font-medium leading-none text-positivo">Al día</span>
+        <span className="cifras text-[12px] leading-tight text-tenue">{euros(objetivo)}</span>
       </>
     )
   }
@@ -272,6 +341,7 @@ function CentroDonut({ base, pendiente }: Readonly<{ base: number; pendiente: nu
     <>
       <span className="cifras text-[19px] font-semibold leading-none">{euros(pendiente)}</span>
       <span className="text-[12px] leading-tight text-tenue">por transferir</span>
+      <span className="cifras text-[11px] leading-tight text-sutil">de {euros(objetivo)}</span>
     </>
   )
 }
@@ -281,242 +351,4 @@ function etiquetaDonut(datos: Datos, persona: ResumenPersona): string {
   const partes = TRAMOS.map((t) => `${t.etiqueta} ${euros(persona[t.clave])}`).join(', ')
   const objetivo = `objetivo ${euros(persona.objetivo)}`
   return `${nombrePersona(datos, persona.personaId)}: ${partes}, de un ${objetivo}.`
-}
-
-function Movimientos({ datos }: Readonly<{ datos: Datos }>) {
-  const mes = useStore((s) => s.mes)
-  const aplicar = useStore((s) => s.aplicar)
-  const abrirModalGasto = useStore((s) => s.abrirModalGasto)
-  const abrirModalTransferencia = useStore((s) => s.abrirModalTransferencia)
-  const { anio } = partesMes(mes)
-
-  const gastos = listaGastosDelMes(datos, mes)
-  const transferencias = listaTransferenciasDelMes(datos, mes)
-  const recurrentes = listaRecurrentesDelMes(datos, mes)
-
-  return (
-    <>
-      <Grupo
-        titulo="Gastos del mes"
-        pie={
-          recurrentes.length > 0
-            ? 'El icono ↻ abre la edición completa de un recurrente; el lápiz solo ajusta este mes.'
-            : undefined
-        }
-      >
-        {recurrentes.map(({ recurrente, importe }) => (
-          <FilaLista
-            key={recurrente.id}
-            titulo={
-              <span className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  title="Editar el recurrente"
-                  aria-label={`Editar ${recurrente.concepto || 'recurrente'}`}
-                  onClick={() => abrirModalGasto({ editandoId: recurrente.id })}
-                  className="shrink-0 text-sutil transition active:text-acento"
-                >
-                  <IconoRepetir className="h-4 w-4" />
-                </button>
-                {recurrente.concepto || 'Recurrente'}
-              </span>
-            }
-            detalle={nombrePersona(datos, recurrente.personaId)}
-            accion={<AjusteRecurrente recurrenteId={recurrente.id} importeActual={importe} />}
-          />
-        ))}
-
-        {gastos.map((gasto) => (
-          <FilaLista
-            key={gasto.id}
-            titulo={gasto.concepto || 'Gasto'}
-            detalle={nombrePersona(datos, gasto.personaId)}
-            accion={
-              <span className="flex items-center gap-1">
-                <span className="cifras">{euros(gasto.importe)}</span>
-                <BotonBorrar
-                  etiqueta="Eliminar gasto"
-                  onBorrar={() => aplicar((d) => eliminarGasto(d, String(anio), gasto.id))}
-                />
-              </span>
-            }
-          />
-        ))}
-
-        <FilaLista
-          titulo={
-            <span className="flex items-center gap-2 text-acento">
-              <IconoMas className="h-5 w-5" />
-              Añadir gasto
-            </span>
-          }
-          onClick={() => abrirModalGasto()}
-          sinChevron
-        />
-      </Grupo>
-
-      <Efectivos datos={datos} />
-
-      <Grupo titulo="Transferencias realizadas">
-        {transferencias.map((t) => (
-          <FilaLista
-            key={t.id}
-            titulo={nombrePersona(datos, t.personaId)}
-            detalle={fechaCorta(t.fecha)}
-            accion={
-              <span className="flex items-center gap-1">
-                <span className="cifras">{euros(t.importe)}</span>
-                <BotonBorrar
-                  etiqueta="Eliminar transferencia"
-                  onBorrar={() => aplicar((d) => eliminarTransferencia(d, String(anio), t.id))}
-                />
-              </span>
-            }
-          />
-        ))}
-
-        <FilaLista
-          titulo={
-            <span className="flex items-center gap-2 text-acento">
-              <IconoMas className="h-5 w-5" />
-              Registrar transferencia
-            </span>
-          }
-          onClick={() => abrirModalTransferencia()}
-          sinChevron
-        />
-      </Grupo>
-    </>
-  )
-}
-
-/**
- * Efectivo vigente este mes. Aunque se define por rango y no mes a mes, se
- * gestiona desde aquí porque es una aportación más del mes, igual que los
- * gastos y las transferencias.
- */
-function Efectivos({ datos }: Readonly<{ datos: Datos }>) {
-  const mes = useStore((s) => s.mes)
-  const aplicar = useStore((s) => s.aplicar)
-  const abrirModalEfectivo = useStore((s) => s.abrirModalEfectivo)
-
-  const vigentes = listaEfectivoDelMes(datos, mes)
-
-  return (
-    <Grupo titulo="Efectivo del mes" pie="Se aporta automáticamente cada mes dentro de su rango.">
-      {vigentes.map((e) => (
-        <FilaLista
-          key={e.id}
-          titulo={nombrePersona(datos, e.personaId)}
-          detalle={`${etiquetaMes(e.desde)} – ${e.hasta ? etiquetaMes(e.hasta) : 'sin fin'}`}
-          accion={
-            <span className="flex items-center gap-1">
-              <span className="cifras">{euros(e.importe)}</span>
-              <BotonBorrar
-                etiqueta={`Eliminar efectivo de ${nombrePersona(datos, e.personaId)}`}
-                onBorrar={() => aplicar((d) => eliminarEfectivo(d, e.id))}
-              />
-            </span>
-          }
-        />
-      ))}
-
-      <FilaLista
-        titulo={
-          <span className="flex items-center gap-2 text-acento">
-            <IconoMas className="h-5 w-5" />
-            Añadir efectivo
-          </span>
-        }
-        onClick={() => abrirModalEfectivo()}
-        sinChevron
-      />
-    </Grupo>
-  )
-}
-
-function BotonBorrar({ etiqueta, onBorrar }: Readonly<{ etiqueta: string; onBorrar: () => void }>) {
-  return (
-    <button
-      type="button"
-      aria-label={etiqueta}
-      onClick={onBorrar}
-      className="rounded-full p-1 text-sutil transition active:text-negativo"
-    >
-      <IconoCerrar className="h-4 w-4" />
-    </button>
-  )
-}
-
-/**
- * Ajusta un recurrente solo para este mes. Es una única escritura (un override),
- * así que nunca se cuenta el gasto dos veces.
- */
-function AjusteRecurrente({
-  recurrenteId,
-  importeActual,
-}: Readonly<{
-  recurrenteId: string
-  importeActual: number
-}>) {
-  const mes = useStore((s) => s.mes)
-  const aplicar = useStore((s) => s.aplicar)
-  const [editando, setEditando] = useState(false)
-  const [valor, setValor] = useState(importeEditable(importeActual))
-
-  if (!editando) {
-    return (
-      <span className="flex items-center gap-1">
-        <span className={`cifras ${importeActual === 0 ? 'text-sutil line-through' : ''}`}>
-          {euros(importeActual)}
-        </span>
-        <button
-          type="button"
-          aria-label="Ajustar este mes"
-          onClick={() => {
-            setValor(importeEditable(importeActual))
-            setEditando(true)
-          }}
-          className="rounded-full p-1 text-sutil transition active:text-acento"
-        >
-          <IconoLapiz className="h-4 w-4" />
-        </button>
-      </span>
-    )
-  }
-
-  return (
-    <span className="flex items-center gap-1">
-      <EntradaEuros
-        name="importe-ajuste"
-        valor={valor}
-        autoFocus
-        aria-label="Importe solo para este mes"
-        className="w-28 px-2 py-1 text-right text-[15px]"
-        onCambiar={setValor}
-      />
-      <Boton
-        variante="texto"
-        aria-label="Guardar ajuste"
-        onClick={() => {
-          aplicar((d) => fijarOverrideRecurrente(d, recurrenteId, mes, leeImporte(valor)))
-          setEditando(false)
-        }}
-      >
-        OK
-      </Boton>
-      <button
-        type="button"
-        title="Volver al importe general"
-        aria-label="Volver al importe general"
-        onClick={() => {
-          aplicar((d) => fijarOverrideRecurrente(d, recurrenteId, mes, null))
-          setEditando(false)
-        }}
-        className="rounded-full p-1 text-sutil active:text-acento"
-      >
-        <IconoDeshacer className="h-4 w-4" />
-      </button>
-    </span>
-  )
 }

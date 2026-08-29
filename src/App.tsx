@@ -6,6 +6,7 @@ import { ModalEfectivo } from './componentes/ModalEfectivo'
 import { ModalGasto } from './componentes/ModalGasto'
 import { ModalTransferencia } from './componentes/ModalTransferencia'
 import { PantallaAcceso } from './componentes/PantallaAcceso'
+import { PantallaMovimientos } from './componentes/PantallaMovimientos'
 import { PantallaObjetivos } from './componentes/PantallaObjetivos'
 import { ResumenAnual } from './componentes/ResumenAnual'
 import { ResumenMensual } from './componentes/ResumenMensual'
@@ -20,6 +21,12 @@ const PESTANAS: { clave: Pestana; titulo: string; Icono: typeof IconoMes }[] = [
   { clave: 'anio', titulo: 'Año', Icono: IconoAnio },
   { clave: 'ajustes', titulo: 'Ajustes', Icono: IconoAjustes },
 ]
+
+/** Subpantallas sin botón propio: marcan activa la pestaña de la que cuelgan. */
+const PESTANA_PADRE: Partial<Record<Pestana, Pestana>> = {
+  objetivos: 'ajustes',
+  movimientos: 'mes',
+}
 
 export function App() {
   const estado = useStore((s) => s.estado)
@@ -52,12 +59,12 @@ export function App() {
       {pestana === 'anio' && <ResumenAnual datos={datos} />}
       {pestana === 'ajustes' && <Ajustes datos={datos} />}
       {pestana === 'objetivos' && <PantallaObjetivos datos={datos} />}
+      {pestana === 'movimientos' && <PantallaMovimientos datos={datos} />}
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-borde bg-superficie/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl pb-[env(safe-area-inset-bottom)]">
           {PESTANAS.map(({ clave, titulo, Icono }) => {
-            // `objetivos` es una subpantalla de ajustes: mantiene esa pestaña marcada.
-            const activa = pestana === clave || (clave === 'ajustes' && pestana === 'objetivos')
+            const activa = clave === (PESTANA_PADRE[pestana] ?? pestana)
             return (
               <button
                 key={clave}
@@ -80,8 +87,8 @@ export function App() {
         key={`${modalGasto.abierto}|${modalGasto.editandoId ?? 'nuevo'}`}
         datos={datos}
       />
-      <ModalTransferencia key={String(modalTransferencia)} datos={datos} />
-      <ModalEfectivo key={String(modalEfectivo)} datos={datos} />
+      <ModalTransferencia key={`transferencia|${modalTransferencia}`} datos={datos} />
+      <ModalEfectivo key={`efectivo|${modalEfectivo}`} datos={datos} />
     </div>
   )
 }
