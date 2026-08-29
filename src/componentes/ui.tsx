@@ -459,9 +459,8 @@ export function Info({ children }: Readonly<{ children: ReactNode }>) {
   )
 }
 
-// Umbrales para cerrar al soltar: basta con superar uno de los dos.
 const ARRASTRE_CIERRE_PX = 120
-const ARRASTRE_CIERRE_VELOCIDAD = 0.5 // px/ms
+const ARRASTRE_CIERRE_PX_MS = 0.5
 
 interface ArrastreModal {
   inicioY: number
@@ -493,8 +492,6 @@ export function Modal({
 
   if (!abierto) return null
 
-  // Desde el propio tirador o el título se arrastra; desde un botón de la
-  // cabecera (cerrar) no, para no robarle el toque a su propio `onClick`.
   function empezarArrastre(e: EventoPuntero<HTMLDivElement>) {
     if ((e.target as HTMLElement).closest('button')) return
     arrastre.current = { inicioY: e.clientY, inicioT: performance.now() }
@@ -515,7 +512,7 @@ export function Modal({
 
     const bajadaFinal = Math.max(0, e.clientY - info.inicioY)
     const velocidad = bajadaFinal / Math.max(performance.now() - info.inicioT, 1)
-    if (bajadaFinal > ARRASTRE_CIERRE_PX || velocidad > ARRASTRE_CIERRE_VELOCIDAD) {
+    if (bajadaFinal > ARRASTRE_CIERRE_PX || velocidad > ARRASTRE_CIERRE_PX_MS) {
       onCerrar()
     } else {
       setBajada(0)

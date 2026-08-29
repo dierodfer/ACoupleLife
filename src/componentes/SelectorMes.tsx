@@ -22,7 +22,6 @@ export function SelectorMes({ datos }: Readonly<{ datos: Datos }>) {
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Fija arriba al hacer scroll, para no perder de vista qué mes se ve. */}
       <div className="sticky top-0 z-30 -mx-4 flex items-center justify-between gap-2 bg-fondo/85 px-4 py-1.5 backdrop-blur-xl">
         <button
           type="button"
