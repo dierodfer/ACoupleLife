@@ -8,12 +8,6 @@ import {
   vigilarInstalacion,
 } from './pwa'
 
-/**
- * La invitación a instalar la app la manda Chrome una sola vez y hay que
- * guardarla al vuelo (ver `pwa.ts`). Como no se ve por ninguna parte hasta que
- * alguien abre Ajustes, se comprueba aquí.
- */
-
 /** El `beforeinstallprompt` de Chrome, con el guion que le marquemos. */
 function eventoDeChrome(respuesta: 'accepted' | 'dismissed') {
   const evento = new Event('beforeinstallprompt') as Event & {
@@ -25,12 +19,9 @@ function eventoDeChrome(respuesta: 'accepted' | 'dismissed') {
   return evento
 }
 
-// Una sola vez, como en `main.tsx`: son oyentes del `window` para toda la vida
-// de la página.
 vigilarInstalacion()
 
 beforeEach(() => {
-  // `appinstalled` es lo que vacía la invitación guardada: sirve de reinicio.
   window.dispatchEvent(new Event('appinstalled'))
 })
 
@@ -87,10 +78,7 @@ describe('invitación de instalación', () => {
 })
 
 describe('detección de app instalada', () => {
-  /**
-   * jsdom no trae `matchMedia`, así que hay que ponerlo a mano; `display-mode`
-   * es justo lo que distingue la ventana de la app de una pestaña normal.
-   */
+  /** jsdom no trae `matchMedia`. */
   function abrirComo(modo: 'app' | 'pestaña') {
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,

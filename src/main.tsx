@@ -10,8 +10,7 @@ import './index.css'
 aplicarTema(temaGuardado())
 vigilarCambiosSinGuardar()
 
-// También antes del render: Chrome ofrece instalar la app muy pronto, y si
-// nadie escucha en ese momento se pierde la oportunidad (ver services/pwa.ts).
+// Chrome ofrece instalar la app muy pronto (ver services/pwa.ts).
 vigilarInstalacion()
 registrarServiceWorker()
 

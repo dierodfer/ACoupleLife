@@ -206,18 +206,11 @@ function Apariencia() {
   )
 }
 
-/**
- * Instalar la app en el sistema, sobre todo en Android: Chrome deja hacerlo
- * desde aquí mismo con su propio diálogo (ver `services/pwa.ts`). Cuando el
- * navegador no ofrece esa vía —Safari nunca la ofrece, y Chrome tampoco si ya
- * está instalada o si acabas de descartar el diálogo— queda la explicación de
- * cómo hacerlo a mano, que es lo único que se puede hacer desde la web.
- */
+/** Ver `services/pwa.ts`: sin invitación de Chrome (Safari nunca la da), queda la vía manual. */
 function Instalacion() {
   const disponible = useSyncExternalStore(suscribirseAInstalacion, sePuedeInstalar)
   const [aceptada, setAceptada] = useState(false)
 
-  // Abierta desde el icono ya no hay nada que instalar.
   if (estaInstalada()) return null
 
   const pedirInstalacion = async () => {
@@ -247,8 +240,6 @@ function contenidoInstalacion(aceptada: boolean, disponible: boolean, instalar: 
     )
   }
 
-  // Safari nunca deja instalarla desde la página, y Chrome tampoco si ya se
-  // descartó el diálogo hace poco: en ese caso, el camino a mano.
   return (
     <p className="p-4 text-[15px] text-tenue">
       Desde este navegador se añade a mano: en Android, menú (⋮) → «Añadir a la pantalla de

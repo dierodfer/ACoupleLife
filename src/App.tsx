@@ -103,18 +103,12 @@ function Pantallas() {
   )
 }
 
-/**
- * Instalada como app, la pantalla puede pasar días abierta sin volver a pasar
- * por el navegador, así que la versión desplegada se queda esperando. Se avisa
- * y recarga quien quiera: nunca por debajo de una pantalla con cambios a medio
- * guardar (ver `services/pwa.ts`).
- */
+/** Ver `services/pwa.ts`: se avisa en vez de recargar sola bajo cambios sin guardar. */
 function AvisoVersionNueva() {
   const hay = useSyncExternalStore(suscribirseAVersionNueva, hayVersionNueva)
   if (!hay) return null
 
-  // Flotante y por encima de todo: puede llegar en cualquier pantalla, incluida
-  // la de acceso, y no tiene por qué empujar lo que se estaba leyendo.
+  // Flotante y por encima de todo: puede llegar en cualquier pantalla.
   return (
     <div className="fixed inset-x-0 top-0 z-50 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
       <div className="mx-auto max-w-2xl shadow-lg shadow-black/5">

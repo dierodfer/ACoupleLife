@@ -4,22 +4,15 @@ import path from 'node:path'
 import process from 'node:process'
 
 /**
- * Genera los iconos PNG de la PWA (`public/iconos/`) con la marca de la app:
- * los dos anillos entrelazados —la pareja— en blanco sobre el azul de acento.
- * Es el mismo dibujo que pinta `MarcaApp` en la pantalla de acceso, con las
- * mismas proporciones, para que el icono de la pantalla de inicio y lo primero
- * que se ve al abrir sean la misma cosa.
+ * Genera los iconos PNG de la PWA (`public/iconos/`): los dos anillos
+ * entrelazados de `MarcaApp` (pantalla de acceso), en blanco sobre el azul de
+ * acento. Se suben al repo ya generados; solo hay que volver a ejecutar este
+ * script si cambia el dibujo o los colores.
  *
- * Los PNG se generan aquí y se suben al repo ya hechos: son parte del build de
- * Vite (`public/` se copia tal cual) y no hace falta ninguna dependencia nueva
- * para compilar la app. Ejecutar `node scripts/generar-iconos.mjs` solo cuando
- * cambie el dibujo o los colores.
- *
- * Android necesita dos familias de icono y no valen la una por la otra:
- *   - `any`      → se pinta tal cual, así que lleva sus propias esquinas redondeadas.
- *   - `maskable` → el sistema le aplica su máscara (círculo, squircle…), así que
- *                  va a sangre y con el dibujo dentro de la zona segura (el 80%
- *                  central: nada importante fuera de un radio de 0.4·lado).
+ * Android necesita dos familias de icono:
+ *   - `any`      → esquinas ya redondeadas, se pinta tal cual.
+ *   - `maskable` → a sangre; el sistema aplica su propia máscara y recorta el
+ *                  20% exterior, así que el dibujo se queda dentro del 80% central.
  */
 
 const AZUL = [0x00, 0x69, 0xf0] // --color-acento en claro: oklch(0.556 0.219 259)
@@ -28,11 +21,7 @@ const BLANCO = [0xff, 0xff, 0xff]
 /** Muestras por lado y píxel: el suavizado de bordes sale de promediarlas. */
 const MUESTRAS = 4
 
-/**
- * Los dos anillos, en las coordenadas del SVG de `MarcaApp` (lienzo de 24×24).
- * Copiarlas y no reescalarlas a mano es lo que mantiene el icono idéntico a la
- * marca de la pantalla de acceso.
- */
+/** Los dos anillos, en las coordenadas del SVG de `MarcaApp` (lienzo 24×24). */
 const LIENZO_MARCA = 24
 const ANILLOS = [
   { cx: 9, cy: 12, r: 5.25 },
@@ -55,11 +44,9 @@ function dentroDelFondo(x, y, lado, radio) {
 
 /**
  * ¿Cae el punto sobre el trazo de alguno de los dos anillos? `escala` es el
- * tamaño de la marca como fracción del lado del icono (0.5 = la mitad, igual
- * que en la pantalla de acceso).
+ * tamaño de la marca como fracción del lado del icono.
  */
 function sobreLosAnillos(x, y, lado, escala) {
-  // Del píxel del icono a las coordenadas del lienzo de 24×24 de la marca.
   const marca = lado * escala
   const u = ((x - (lado - marca) / 2) / marca) * LIENZO_MARCA
   const v = ((y - (lado - marca) / 2) / marca) * LIENZO_MARCA
@@ -93,10 +80,8 @@ function pintar(lado, { radio, escala }) {
       }
 
       const i = (fila * lado + columna) * 4
-      // El color se promedia solo entre las muestras que caen dentro del icono
-      // y la transparencia sale de cuántas eran: el PNG guarda el color sin
-      // premultiplicar, y dividirlo también por las de fuera ennegrecería el
-      // borde redondeado.
+      // Promediar el color solo entre las muestras cubiertas evita ennegrecer
+      // el borde redondeado (el PNG no lleva el color premultiplicado).
       if (cubiertas > 0) {
         pixeles[i] = Math.round(r / cubiertas)
         pixeles[i + 1] = Math.round(g / cubiertas)
@@ -163,15 +148,11 @@ function png(lado, pixeles) {
 const CARPETA = path.join(process.cwd(), 'public', 'iconos')
 
 const ICONOS = [
-  // Esquinas al estilo iOS y marca a media altura, la misma proporción que la
-  // pantalla de acceso (36 px de marca en un cuadro de 72).
   { archivo: 'icono-192.png', lado: 192, radio: 0.225, escala: 0.5 },
   { archivo: 'icono-512.png', lado: 512, radio: 0.225, escala: 0.5 },
-  // A sangre, porque la máscara del sistema recorta el borde. La marca cabe de
-  // sobra en la zona segura: su esquina más lejana queda a 0.26·lado del centro.
+  // maskable y apple-touch-icon van a sangre: iOS y la máscara de Android recortan el borde.
   { archivo: 'icono-maskable-192.png', lado: 192, radio: 0, escala: 0.56 },
   { archivo: 'icono-maskable-512.png', lado: 512, radio: 0, escala: 0.56 },
-  // iOS redondea el icono por su cuenta, así que este también va a sangre.
   { archivo: 'apple-touch-icon-180.png', lado: 180, radio: 0, escala: 0.52 },
 ]
 

@@ -2,17 +2,9 @@ import { expect, test } from '@playwright/test'
 import { levantarServidor, type ServidorPruebas } from './servidor'
 
 /**
- * Comportamiento de la app instalada, que es lo único que no se puede probar
- * con Vitest: hace falta un navegador de verdad, un origen seguro y un service
- * worker vivo.
- *
- * Cubre las tres cosas que se rompen en silencio y no se notan hasta que
- * alguien abre la app en el móvil:
- *   1. que siga cumpliendo los criterios de instalación (y que los iconos y
- *      capturas declarados en el manifiesto sean los que hay en disco),
- *   2. que arranque sin conexión,
- *   3. que no se quede cacheado nada que no sea del propio origen,
- *   4. que un despliegue nuevo se avise en vez de colarse por debajo.
+ * Comportamiento de la app instalada: criterios de instalación, arranque sin
+ * conexión, caché limitada al propio origen y aviso de versión nueva. Necesita
+ * navegador de verdad, así que no se puede cubrir con Vitest.
  */
 
 let servidor: ServidorPruebas
@@ -66,13 +58,10 @@ test.describe('criterios de instalación', () => {
     expect(['standalone', 'fullscreen', 'minimal-ui']).toContain(manifiesto.display)
     expect(manifiesto.prefer_related_applications).toBeFalsy()
 
-    // `start_url` y `scope` son relativos: tienen que resolver dentro de la
-    // carpeta donde se publica la app, o la app instalada abriría fuera.
     const base = new URL('./', url).href
     expect(new URL(manifiesto.start_url ?? '', url).href).toBe(base)
     expect(new URL(manifiesto.scope ?? '', url).href).toBe(base)
 
-    // Iconos: 192 y 512, y al menos uno `maskable` para la máscara de Android.
     const tamanos = (manifiesto.icons ?? []).map((i) => i.sizes)
     expect(tamanos).toContain('192x192')
     expect(tamanos).toContain('512x512')
@@ -97,7 +86,6 @@ test.describe('criterios de instalación', () => {
     const { manifiesto } = await leerManifiesto()
     const estrechas = (manifiesto.screenshots ?? []).filter((c) => c.form_factor === 'narrow')
 
-    // Sin al menos una captura «narrow», Android enseña el diálogo pobre.
     expect(estrechas.length).toBeGreaterThan(0)
     expect(manifiesto.description?.length ?? 0).toBeLessThanOrEqual(324)
 
@@ -108,12 +96,10 @@ test.describe('criterios de instalación', () => {
       const [ancho = 0, alto = 0] = (captura.sizes ?? '').split('x').map(Number)
       expect(Math.min(ancho, alto)).toBeGreaterThanOrEqual(320)
       expect(Math.max(ancho, alto)).toBeLessThanOrEqual(3840)
-      // Chrome rechaza las capturas muy alargadas.
       expect(Math.max(ancho, alto) / Math.min(ancho, alto)).toBeLessThanOrEqual(2.3)
       proporciones.add((ancho / alto).toFixed(3))
     }
 
-    // Todas las del mismo formato tienen que compartir proporción.
     expect(proporciones.size).toBe(1)
   })
 })
@@ -129,8 +115,6 @@ test.describe('service worker', () => {
     await context.setOffline(true)
     await page.reload()
 
-    // Sin red y aun así la app entera, servida de la caché: título de la app
-    // (no el del error del navegador) y React montado con algo pintado.
     await expect(page).toHaveTitle('Cuentas de pareja')
     await expect(page.locator('#root')).not.toBeEmpty()
 
@@ -166,12 +150,11 @@ test.describe('service worker', () => {
     await page.evaluate(() => navigator.serviceWorker.ready)
     await page.reload()
 
-    // Marca para comprobar luego que la página se ha recargado de verdad.
+    // Marca para comprobar que la página se recarga de verdad tras aceptar.
     await page.evaluate(() => {
       ;(window as unknown as { marca?: boolean }).marca = true
     })
 
-    // Un despliegue: el `sw.js` que sirve el servidor ya no es el mismo.
     servidor.parcheSw = `// versión nueva ${String(Date.now())}`
     await page.evaluate(async () => {
       const registro = await navigator.serviceWorker.getRegistration()

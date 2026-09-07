@@ -1,29 +1,19 @@
 /*
- * Service worker de la app instalada (PWA).
+ * Service worker de la app instalada (PWA). No hace falta para poder
+ * instalarla (Chrome ya no lo exige), pero sí para arrancar sin red una vez
+ * instalada. Cachea solo el armazón (HTML/JS/CSS/iconos) del propio origen;
+ * Google (login, Drive, Picker) va siempre a la red.
  *
- * Ya no hace falta para poder instalarla —Chrome quitó ese requisito de sus
- * criterios de instalación, que hoy son solo HTTPS + manifiesto con iconos de
- * 192 y 512—, pero sí para lo que viene después: instalada, la app se abre
- * desde su icono sin barra de navegador, y sin caché lo que se vería sin red
- * sería el dinosaurio en vez de la aplicación.
- *
- * Lo que se cachea es solo el «armazón» (HTML, JS, CSS, iconos), nunca los
- * datos: el JSON vive en Drive y se pide siempre a la red, igual que el login.
- * Por eso este archivo no toca nada que no sea del propio origen.
- *
- * Al cambiar la estrategia o los archivos esenciales hay que subir VERSION:
- * es lo que hace que el navegador tire la caché vieja al activarse.
+ * Al cambiar la estrategia o los archivos esenciales hay que subir VERSION,
+ * para que el navegador tire la caché vieja al activarse.
  */
 
 const VERSION = 'v2'
 const CACHE = `acouplelife-${VERSION}`
 
-// La app se publica en un subdirectorio (`/ACoupleLife/`), así que la base sale
-// de dónde está este archivo y no de una constante que habría que mantener.
 const BASE = new URL('./', self.location.href).pathname
 const INDICE = `${BASE}index.html`
 
-/** Lo mínimo para que la app arranque sin red. El resto se cachea al usarse. */
 const ESENCIALES = [
   BASE,
   INDICE,
@@ -37,24 +27,20 @@ self.addEventListener('install', (evento) => {
   evento.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE)
-      // `allSettled` y no `addAll`: si un icono falla, la instalación sigue en
-      // pie con el HTML cacheado, que es lo que de verdad importa.
+      // `allSettled`: si un icono falla, la instalación sigue con el HTML cacheado.
       await Promise.allSettled(
         ESENCIALES.map((ruta) => cache.add(new Request(ruta, { cache: 'reload' }))),
       )
     })(),
-    // A propósito sin `skipWaiting()`: la versión nueva espera a que la persona
-    // acepte el aviso de la app (ver el mensaje ACTIVAR_YA, más abajo). Cambiar
-    // el código por debajo de una pantalla abierta, con cambios a medio guardar
-    // en Drive, es justo lo que no queremos.
+    // Sin `skipWaiting()` a propósito: la versión nueva espera al aviso de la
+    // app (mensaje ACTIVAR_YA), para no cambiar el código bajo una pantalla
+    // con cambios a medio guardar en Drive.
   )
 })
 
 self.addEventListener('activate', (evento) => {
   evento.waitUntil(
     (async () => {
-      // Adelanta la petición de red mientras arranca el worker: en un móvil son
-      // entre 50 y 200 ms de menos en cada arranque en frío.
       if (self.registration.navigationPreload) {
         await self.registration.navigationPreload.enable()
       }
@@ -70,15 +56,11 @@ self.addEventListener('activate', (evento) => {
   )
 })
 
-/** La app pide activar la versión nueva cuando la persona acepta recargar. */
 self.addEventListener('message', (evento) => {
   if (evento.data?.tipo === 'ACTIVAR_YA') void self.skipWaiting()
 })
 
-/**
- * Navegación (abrir la app): primero la red, para que un despliegue nuevo se
- * vea en cuanto haya conexión, y la caché solo como red de seguridad.
- */
+/** Navegación: red primero, caché como red de seguridad sin conexión. */
 async function navegar(evento) {
   const cache = await caches.open(CACHE)
   try {
@@ -92,11 +74,7 @@ async function navegar(evento) {
   }
 }
 
-/**
- * Recursos del armazón: primero la caché. Los nombres del build llevan hash
- * (`index-a1b2c3.js`), así que una versión cacheada nunca queda desfasada:
- * si el contenido cambia, cambia también la URL.
- */
+/** Recursos con hash: caché primero, nunca quedan desfasados. */
 async function servir(peticion) {
   const cache = await caches.open(CACHE)
   const guardado = await cache.match(peticion)
@@ -113,13 +91,8 @@ self.addEventListener('fetch', (evento) => {
 
   const url = new URL(peticion.url)
 
-  // Google (login, Drive, Picker) y cualquier otro origen: siempre a la red.
-  // Cachear una respuesta con token o con datos de la pareja sería guardar en
-  // el disco del dispositivo algo que solo debe vivir en memoria.
   if (url.origin !== self.location.origin) return
-
-  // La API del modo local del dev server (ver vite.config.ts) sirve los datos:
-  // tampoco se cachea, aunque en desarrollo no haya service worker registrado.
+  // Modo local del dev server (ver vite.config.ts): tampoco se cachea.
   if (url.pathname.includes('__local-data__')) return
 
   if (peticion.mode === 'navigate') {

@@ -4,14 +4,9 @@ import path from 'node:path'
 import { extname } from 'node:path'
 
 /**
- * Servidor estático mínimo sobre `dist/` para las pruebas de PWA.
- *
- * `vite preview` valdría para casi todo, pero no para la prueba del aviso de
- * versión nueva: hace falta poder cambiar lo que se sirve (el `sw.js`) con el
- * navegador ya abierto, que es exactamente lo que pasa en un despliegue.
- *
- * Sirve en `127.0.0.1`, que el navegador considera contexto seguro: sin eso no
- * habría service worker que probar.
+ * Servidor estático mínimo sobre `dist/`. `vite preview` no vale para la
+ * prueba del aviso de versión nueva: hace falta poder cambiar el `sw.js`
+ * servido con el navegador ya abierto, simulando un despliegue.
  */
 
 const RAIZ = path.join(process.cwd(), 'dist')
@@ -46,7 +41,6 @@ export async function levantarServidor(): Promise<ServidorPruebas> {
     const relativa = ruta.startsWith(BASE) ? ruta.slice(BASE.length) : ruta.slice(1)
     const archivo = path.join(RAIZ, relativa || 'index.html')
 
-    // Ni salirse de dist/ ni servir un directorio como si fuera un archivo.
     if (!archivo.startsWith(RAIZ) || !existsSync(archivo)) {
       respuesta.statusCode = 404
       respuesta.end('no está')
@@ -55,8 +49,6 @@ export async function levantarServidor(): Promise<ServidorPruebas> {
 
     const tipo = TIPOS[extname(archivo)] ?? 'application/octet-stream'
     respuesta.setHeader('Content-Type', tipo)
-    // Sin caché de navegador: la caché que se mide en estas pruebas es la del
-    // service worker, no la del HTTP.
     respuesta.setHeader('Cache-Control', 'no-store')
 
     if (relativa === 'sw.js' && estado.parcheSw) {
