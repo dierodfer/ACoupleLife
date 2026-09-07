@@ -57,6 +57,8 @@ self.addEventListener('activate', (evento) => {
 })
 
 self.addEventListener('message', (evento) => {
+  // Solo la propia app manda mensajes aquí; se comprueba el origen igualmente.
+  if (evento.origin && evento.origin !== self.location.origin) return
   if (evento.data?.tipo === 'ACTIVAR_YA') void self.skipWaiting()
 })
 
