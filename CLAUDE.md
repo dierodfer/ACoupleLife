@@ -76,6 +76,12 @@ para documentar el formato de cada cadena.
      lo que ella misma ha creado). Por eso el Picker se construye con `setAppId` (el número de
      proyecto, deducido del client ID): es lo que concede el acceso a un archivo ajeno, y sin
      él la selección funciona pero Drive responde 404 al leerlo.
+   - `pwa.ts` — instalación en el sistema operativo, pensada sobre todo para Android. Registra
+     `public/sw.js` **solo en producción** (en `dev` serviría módulos cacheados por encima de
+     los que Vite acaba de recompilar) y guarda el evento `beforeinstallprompt`, que Chrome
+     dispara una sola vez y antes de que la interfaz esté montada: por eso se escucha desde
+     `main.tsx`, el estado vive en el módulo y la UI (Ajustes) se suscribe con
+     `useSyncExternalStore` en vez de pasar por el store. Tiene tests (`pwa.test.ts`).
 
 3. **`src/store/useStore.ts`** — el único punto que conecta lib + services + UI, con Zustand.
    - Máquina de estados explícita en `EstadoApp` (`arrancando` → `sinSesion`/`sinArchivo` →
@@ -101,6 +107,30 @@ Tailwind v4 con tokens de tema en `src/index.css` (`@theme`, con variante `dark`
 `prefers-color-scheme`): `fondo`, `superficie`, `borde`, `tinta`, `tenue`, `acento`, `positivo`,
 `negativo`. Usar estos tokens (`text-tenue`, `bg-superficie`, etc.) en vez de colores sueltos de
 Tailwind para que la app respete el tema claro/oscuro automáticamente.
+
+### PWA (instalable en Android)
+
+Todo lo que hace falta para instalarla vive en `public/`, que Vite copia tal cual, y en
+`src/services/pwa.ts`:
+
+- `manifest.webmanifest` — usa rutas **relativas** (`start_url: "."`, iconos sin `/` inicial)
+  para que valgan igual bajo `/ACoupleLife/` en Pages que bajo otro `VITE_BASE`.
+- `sw.js` — service worker. Chrome no ofrece instalar la app sin uno que responda a `fetch`,
+  y una vez instalada es lo que evita que se vea el dinosaurio al abrirla sin red. Cachea solo
+  el armazón del mismo origen; Google (login, Drive, Picker) y `__local-data__` van siempre a
+  la red, porque una respuesta con token o con los datos de la pareja no debe quedarse en el
+  disco del dispositivo. Al cambiar la estrategia o los archivos esenciales hay que subir
+  `VERSION`: es lo que tira la caché vieja.
+- `iconos/` — PNG versionados, generados con `node scripts/generar-iconos.mjs` (dibuja la misma
+  marca de dos anillos que `MarcaApp`, sin dependencias). Android necesita las dos familias:
+  `any` con sus esquinas ya redondeadas y `maskable` a sangre, con el dibujo dentro del 80%
+  central que respeta cualquier máscara del sistema.
+- El `<meta name="theme-color">` de `index.html` lo actualiza `lib/tema.ts` al cambiar de tema:
+  es el color de la barra de estado con la app instalada, y ahí no llegan ni las variables CSS
+  ni `oklch()`.
+
+Para probarlo hace falta un build servido: `npm run build && npm run preview` (en `dev` el
+service worker no se registra a propósito).
 
 ## Variables de entorno
 

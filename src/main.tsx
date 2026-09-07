@@ -2,12 +2,18 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { aplicarTema, temaGuardado } from './lib/tema'
+import { registrarServiceWorker, vigilarInstalacion } from './services/pwa'
 import { vigilarCambiosSinGuardar } from './store/useStore'
 import './index.css'
 
 // Antes del primer render, para que no se vea un destello del tema contrario.
 aplicarTema(temaGuardado())
 vigilarCambiosSinGuardar()
+
+// También antes del render: Chrome ofrece instalar la app muy pronto, y si
+// nadie escucha en ese momento se pierde la oportunidad (ver services/pwa.ts).
+vigilarInstalacion()
+registrarServiceWorker()
 
 const raiz = document.getElementById('root')
 if (!raiz) throw new Error('Falta el nodo #root en index.html')

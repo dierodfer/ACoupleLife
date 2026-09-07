@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { partesMes } from '../lib/fechas'
 import { euros } from '../lib/formato'
 import { renombrarPersona } from '../lib/mutaciones'
 import type { Datos } from '../lib/tipos'
 import { drive } from '../services/backend'
+import { estaInstalada, instalar, sePuedeInstalar, suscribirseAInstalacion } from '../services/pwa'
 import { useStore } from '../store/useStore'
 import { Aviso, Boton, Campo, ControlSegmentado, Entrada, FilaLista, Grupo, TituloGrande } from './ui'
 
@@ -22,6 +23,7 @@ export function Ajustes({ datos }: Readonly<{ datos: Datos }>) {
       <AccesoObjetivos datos={datos} />
       <Compartir datos={datos} />
       <Apariencia />
+      <Instalacion />
       <Sesion />
     </div>
   )
@@ -201,6 +203,57 @@ function Apariencia() {
         />
       </div>
     </Grupo>
+  )
+}
+
+/**
+ * Instalar la app en el sistema, sobre todo en Android: Chrome deja hacerlo
+ * desde aquí mismo con su propio diálogo (ver `services/pwa.ts`). Cuando el
+ * navegador no ofrece esa vía —Safari nunca la ofrece, y Chrome tampoco si ya
+ * está instalada o si acabas de descartar el diálogo— queda la explicación de
+ * cómo hacerlo a mano, que es lo único que se puede hacer desde la web.
+ */
+function Instalacion() {
+  const disponible = useSyncExternalStore(suscribirseAInstalacion, sePuedeInstalar)
+  const [aceptada, setAceptada] = useState(false)
+
+  // Abierta desde el icono ya no hay nada que instalar.
+  if (estaInstalada()) return null
+
+  const pedirInstalacion = async () => {
+    setAceptada(await instalar())
+  }
+
+  return (
+    <Grupo
+      titulo="Aplicación"
+      pie="Se abre desde su icono, a pantalla completa y sin barra del navegador. Sigue siendo la misma aplicación: los datos son el mismo archivo de Drive."
+    >
+      {contenidoInstalacion(aceptada, disponible, pedirInstalacion)}
+    </Grupo>
+  )
+}
+
+function contenidoInstalacion(aceptada: boolean, disponible: boolean, instalar: () => Promise<void>) {
+  if (aceptada) return <FilaLista titulo="Instalada" detalle="Búscala en la pantalla de inicio." />
+
+  if (disponible) {
+    return (
+      <div className="p-4">
+        <Boton variante="principal" className="w-full" onClick={() => void instalar()}>
+          Instalar en este dispositivo
+        </Boton>
+      </div>
+    )
+  }
+
+  // Safari nunca deja instalarla desde la página, y Chrome tampoco si ya se
+  // descartó el diálogo hace poco: en ese caso, el camino a mano.
+  return (
+    <p className="p-4 text-[15px] text-tenue">
+      Desde este navegador se añade a mano: en Android, menú (⋮) → «Añadir a la pantalla de
+      inicio»; en iPhone, botón de compartir → «Añadir a inicio».
+    </p>
   )
 }
 

@@ -3,8 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0f172a" />
+    <!-- Color de la barra de estado con la app instalada. `lib/tema.ts` lo
+         cambia al alternar claro/oscuro, porque el tema es una elección
+         explícita y no la preferencia del sistema. -->
+    <meta name="theme-color" content="#f1f1f3" />
     <meta name="description" content="Cuentas de pareja: cuánto tengo que transferir este mes." />
+
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- iOS ignora el manifest: su icono de pantalla de inicio sale de aquí. -->
+    <link rel="apple-touch-icon" href="/iconos/apple-touch-icon-180.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Cuentas" />
+
     <title>Cuentas de pareja</title>
   </head>
   <body>
