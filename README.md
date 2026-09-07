@@ -51,7 +51,8 @@ sin barra de navegador:
   la propia página.
 
 Instalada funciona igual —los datos siguen siendo el archivo de Drive— y arranca sin conexión,
-aunque hasta que haya red no podrá leer ni guardar nada.
+aunque hasta que haya red no podrá leer ni guardar nada. Cuando se despliega una versión nueva,
+la app avisa con un «Hay una versión nueva · Recargar» en vez de cambiarse por debajo.
 
 Los iconos (`public/iconos/`) están generados y versionados; se rehacen con
 `node scripts/generar-iconos.mjs` solo si cambia la marca.
@@ -62,6 +63,7 @@ Los iconos (`public/iconos/`) están generados y versionados; se rehacen con
 | --- | --- |
 | `npm run dev` | Servidor de desarrollo |
 | `npm test` | Tests de la lógica de cálculo |
+| `npm run test:e2e` | Playwright: instalación, modo sin red y aviso de versión nueva |
 | `npm run typecheck` | Comprobación de tipos |
 | `npm run build` | Build de producción en `dist/` |
 | `npm run preview` | Sirve `dist/` para probar la instalación y el modo sin red |

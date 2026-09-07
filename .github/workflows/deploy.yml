@@ -27,6 +27,19 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+
+      # Comportamiento de la app instalada (instalabilidad, modo sin red, caché
+      # y aviso de versión nueva). Necesita un navegador de verdad; hace su
+      # propio build, sin credenciales, porque nada de esto pasa por Google.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: informe-playwright
+          path: playwright-report/
+          retention-days: 7
+
       - run: npm run build
         env:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}

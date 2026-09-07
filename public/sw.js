@@ -1,11 +1,11 @@
 /*
  * Service worker de la app instalada (PWA).
  *
- * Dos motivos para tenerlo, los dos de Android/Chrome:
- *   1. Sin un service worker que responda a `fetch`, Chrome no ofrece instalar
- *      la app en el sistema (no dispara `beforeinstallprompt`).
- *   2. Instalada como app, se abre desde el icono sin barra de navegador: si no
- *      hay red, sin caché saldría el dinosaurio en vez de la app.
+ * Ya no hace falta para poder instalarla —Chrome quitó ese requisito de sus
+ * criterios de instalación, que hoy son solo HTTPS + manifiesto con iconos de
+ * 192 y 512—, pero sí para lo que viene después: instalada, la app se abre
+ * desde su icono sin barra de navegador, y sin caché lo que se vería sin red
+ * sería el dinosaurio en vez de la aplicación.
  *
  * Lo que se cachea es solo el «armazón» (HTML, JS, CSS, iconos), nunca los
  * datos: el JSON vive en Drive y se pide siempre a la red, igual que el login.
@@ -15,7 +15,7 @@
  * es lo que hace que el navegador tire la caché vieja al activarse.
  */
 
-const VERSION = 'v1'
+const VERSION = 'v2'
 const CACHE = `acouplelife-${VERSION}`
 
 // La app se publica en un subdirectorio (`/ACoupleLife/`), así que la base sale
@@ -42,35 +42,51 @@ self.addEventListener('install', (evento) => {
       await Promise.allSettled(
         ESENCIALES.map((ruta) => cache.add(new Request(ruta, { cache: 'reload' }))),
       )
-      await self.skipWaiting()
     })(),
+    // A propósito sin `skipWaiting()`: la versión nueva espera a que la persona
+    // acepte el aviso de la app (ver el mensaje ACTIVAR_YA, más abajo). Cambiar
+    // el código por debajo de una pantalla abierta, con cambios a medio guardar
+    // en Drive, es justo lo que no queremos.
   )
 })
 
 self.addEventListener('activate', (evento) => {
   evento.waitUntil(
     (async () => {
+      // Adelanta la petición de red mientras arranca el worker: en un móvil son
+      // entre 50 y 200 ms de menos en cada arranque en frío.
+      if (self.registration.navigationPreload) {
+        await self.registration.navigationPreload.enable()
+      }
+
       const nombres = await caches.keys()
       await Promise.all(
-        nombres.filter((n) => n.startsWith('acouplelife-') && n !== CACHE).map((n) => caches.delete(n)),
+        nombres
+          .filter((n) => n.startsWith('acouplelife-') && n !== CACHE)
+          .map((n) => caches.delete(n)),
       )
       await self.clients.claim()
     })(),
   )
 })
 
+/** La app pide activar la versión nueva cuando la persona acepta recargar. */
+self.addEventListener('message', (evento) => {
+  if (evento.data?.tipo === 'ACTIVAR_YA') void self.skipWaiting()
+})
+
 /**
  * Navegación (abrir la app): primero la red, para que un despliegue nuevo se
  * vea en cuanto haya conexión, y la caché solo como red de seguridad.
  */
-async function navegar(peticion) {
+async function navegar(evento) {
   const cache = await caches.open(CACHE)
   try {
-    const respuesta = await fetch(peticion)
+    const respuesta = (await evento.preloadResponse) || (await fetch(evento.request))
     if (respuesta.ok) await cache.put(INDICE, respuesta.clone())
     return respuesta
   } catch (error) {
-    const guardado = (await cache.match(peticion)) ?? (await cache.match(INDICE))
+    const guardado = (await cache.match(evento.request)) ?? (await cache.match(INDICE))
     if (guardado) return guardado
     throw error
   }
@@ -107,7 +123,7 @@ self.addEventListener('fetch', (evento) => {
   if (url.pathname.includes('__local-data__')) return
 
   if (peticion.mode === 'navigate') {
-    evento.respondWith(navegar(peticion))
+    evento.respondWith(navegar(evento))
     return
   }
 

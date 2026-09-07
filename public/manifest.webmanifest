@@ -1,16 +1,21 @@
 {
+  "id": ".",
   "name": "Cuentas de pareja",
   "short_name": "Cuentas",
-  "description": "Cuentas de pareja: cuánto tengo que transferir este mes.",
+  "description": "Cuánto tiene que transferir cada uno este mes para llegar a su objetivo. Los datos viven en un único archivo de vuestro Google Drive: sin servidor y sin base de datos.",
   "lang": "es",
   "dir": "ltr",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#f1f1f3",
   "theme_color": "#f1f1f3",
   "categories": ["finance", "productivity"],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "icons": [
     {
       "src": "iconos/icono-192.png",
@@ -35,6 +40,22 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "capturas/mes.png",
+      "sizes": "412x892",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Resumen del mes: cuánto le queda por transferir a cada uno."
+    },
+    {
+      "src": "capturas/anio.png",
+      "sizes": "412x892",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Resumen del año: objetivo, aportado y pendiente mes a mes."
     }
   ]
 }

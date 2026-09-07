@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { Ajustes } from './componentes/Ajustes'
 import { IconoAjustes, IconoAnio, IconoMes, IconoRecargar } from './componentes/Iconos'
 import { IndicadorPersona } from './componentes/IndicadorPersona'
@@ -14,6 +14,7 @@ import { Aviso, Boton } from './componentes/ui'
 import { haceCuanto } from './lib/formato'
 import type { Datos } from './lib/tipos'
 import type { Usuario } from './services/auth'
+import { aplicarVersionNueva, hayVersionNueva, suscribirseAVersionNueva } from './services/pwa'
 import { useStore, type EstadoApp, type Pestana } from './store/useStore'
 
 const PESTANAS: { clave: Pestana; titulo: string; Icono: typeof IconoMes }[] = [
@@ -29,6 +30,15 @@ const PESTANA_PADRE: Partial<Record<Pestana, Pestana>> = {
 }
 
 export function App() {
+  return (
+    <>
+      <AvisoVersionNueva />
+      <Pantallas />
+    </>
+  )
+}
+
+function Pantallas() {
   const estado = useStore((s) => s.estado)
   const datos = useStore((s) => s.datos)
   const arrancar = useStore((s) => s.arrancar)
@@ -89,6 +99,35 @@ export function App() {
       />
       <ModalTransferencia key={`transferencia|${modalTransferencia}`} datos={datos} />
       <ModalEfectivo key={`efectivo|${modalEfectivo}`} datos={datos} />
+    </div>
+  )
+}
+
+/**
+ * Instalada como app, la pantalla puede pasar días abierta sin volver a pasar
+ * por el navegador, así que la versión desplegada se queda esperando. Se avisa
+ * y recarga quien quiera: nunca por debajo de una pantalla con cambios a medio
+ * guardar (ver `services/pwa.ts`).
+ */
+function AvisoVersionNueva() {
+  const hay = useSyncExternalStore(suscribirseAVersionNueva, hayVersionNueva)
+  if (!hay) return null
+
+  // Flotante y por encima de todo: puede llegar en cualquier pantalla, incluida
+  // la de acceso, y no tiene por qué empujar lo que se estaba leyendo.
+  return (
+    <div className="fixed inset-x-0 top-0 z-50 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+      <div className="mx-auto max-w-2xl shadow-lg shadow-black/5">
+        <Aviso
+          accion={
+            <Boton variante="texto" className="text-[15px]" onClick={aplicarVersionNueva}>
+              Recargar
+            </Boton>
+          }
+        >
+          Hay una versión nueva.
+        </Aviso>
+      </div>
     </div>
   )
 }

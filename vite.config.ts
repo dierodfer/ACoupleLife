@@ -1,7 +1,9 @@
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import path from 'node:path'
-import { defineConfig, type Plugin } from 'vite'
+// `defineConfig` viene de vitest y no de vite para poder configurar `test` aquí
+// mismo, sin un segundo archivo de configuración; es el mismo de Vite ampliado.
+import { defineConfig, type Plugin } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -94,4 +96,10 @@ function datosLocales(): Plugin {
 export default defineConfig({
   base: process.env.VITE_BASE ?? '/ACoupleLife/',
   plugins: [react(), tailwindcss(), datosLocales()],
+  test: {
+    // Vitest corre solo los tests unitarios. Los de `pruebas-e2e/` son de
+    // Playwright (necesitan navegador de verdad) y también acaban en `.spec.ts`,
+    // que es de lo que Vitest se hace cargo por defecto.
+    include: ['src/**/*.test.ts'],
+  },
 })
