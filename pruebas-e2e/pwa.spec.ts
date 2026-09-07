@@ -115,7 +115,7 @@ test.describe('service worker', () => {
     await context.setOffline(true)
     await page.reload()
 
-    await expect(page).toHaveTitle('Cuentas de pareja')
+    await expect(page).toHaveTitle('CoupleLife')
     await expect(page.locator('#root')).not.toBeEmpty()
 
     await context.setOffline(false)

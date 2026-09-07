@@ -1,7 +1,7 @@
 {
   "id": ".",
-  "name": "Cuentas de pareja",
-  "short_name": "Cuentas",
+  "name": "CoupleLife",
+  "short_name": "CoupleLife",
   "description": "Cuánto tiene que transferir cada uno este mes para llegar a su objetivo. Los datos viven en un único archivo de vuestro Google Drive: sin servidor y sin base de datos.",
   "lang": "es",
   "dir": "ltr",
