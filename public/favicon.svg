@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Cuentas de pareja">
+  <!-- Igual que MarcaApp (pantalla de acceso) y scripts/generar-iconos.mjs. -->
+  <rect width="64" height="64" rx="14.4" fill="#0069f0" />
+  <g transform="translate(16 16) scale(1.3333)" fill="none" stroke="#ffffff" stroke-width="1.75">
+    <circle cx="9" cy="12" r="5.25" />
+    <circle cx="15" cy="12" r="5.25" />
+  </g>
+</svg>

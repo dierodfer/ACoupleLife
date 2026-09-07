@@ -21,6 +21,7 @@ Todo el código, comentarios y UI están en español.
 npm run dev         # servidor de desarrollo (Vite)
 npm test            # tests de una vez (Vitest)
 npm run test:watch  # tests en watch
+npm run test:e2e    # build + Playwright: comportamiento de la app instalada (PWA)
 npm run lint        # ESLint + SonarJS
 npm run typecheck   # tsc -b --noEmit
 npm run build       # tsc -b && vite build -> dist/
@@ -76,6 +77,19 @@ para documentar el formato de cada cadena.
      lo que ella misma ha creado). Por eso el Picker se construye con `setAppId` (el número de
      proyecto, deducido del client ID): es lo que concede el acceso a un archivo ajeno, y sin
      él la selección funciona pero Drive responde 404 al leerlo.
+   - `pwa.ts` — instalación en el sistema operativo, pensada sobre todo para Android. Tres
+     cosas, todas con el mismo motivo de vivir en un módulo y no en el store: el navegador
+     avisa antes de que la interfaz exista, así que se escucha desde `main.tsx` y la UI se
+     suscribe con `useSyncExternalStore`.
+     1. Guarda el evento `beforeinstallprompt` de Chrome (llega muy pronto y solo sirve una
+        vez) para poder ofrecer «Instalar» desde Ajustes.
+     2. Registra `public/sw.js` **solo en producción**: en `dev` serviría módulos cacheados
+        por encima de los que Vite acaba de recompilar.
+     3. Detecta la versión nueva esperando (`updatefound` → `installed` **con** controlador ya
+        presente) y la aplica cuando la persona acepta. La recarga la dispara
+        `controllerchange`, ignorando el primer relevo —el `clients.claim()` de la instalación
+        inicial, que si no haría parpadear la app en su estreno—.
+     Tiene tests (`pwa.test.ts`), y el comportamiento real en `pruebas-e2e/pwa.spec.ts`.
 
 3. **`src/store/useStore.ts`** — el único punto que conecta lib + services + UI, con Zustand.
    - Máquina de estados explícita en `EstadoApp` (`arrancando` → `sinSesion`/`sinArchivo` →
@@ -101,6 +115,47 @@ Tailwind v4 con tokens de tema en `src/index.css` (`@theme`, con variante `dark`
 `prefers-color-scheme`): `fondo`, `superficie`, `borde`, `tinta`, `tenue`, `acento`, `positivo`,
 `negativo`. Usar estos tokens (`text-tenue`, `bg-superficie`, etc.) en vez de colores sueltos de
 Tailwind para que la app respete el tema claro/oscuro automáticamente.
+
+### PWA (instalable en Android)
+
+Todo lo que hace falta vive en `public/`, que Vite copia tal cual, y en `src/services/pwa.ts`.
+
+**Qué exige hoy Chrome para instalar**: HTTPS y un manifiesto con `name`/`short_name`,
+`start_url`, `display` e iconos de 192 y 512. El service worker **ya no es requisito** (Chrome
+lo quitó de sus criterios, y Lighthouse eliminó la categoría PWA por lo mismo); aquí existe por
+el modo sin red, no por la instalación.
+
+- `manifest.webmanifest` — rutas **relativas** (`id`, `start_url` y `scope` a `"."`, iconos sin
+  `/` inicial) para que valgan igual bajo `/ACoupleLife/` en Pages que bajo otro `VITE_BASE`.
+  El `id` explícito fija la identidad de la app instalada: si algún día cambia `start_url`,
+  Android la seguiría reconociendo como la misma y no como una app nueva.
+  Lleva `screenshots` + `description` porque son lo que hace que Android enseñe el diálogo de
+  instalación bueno (el de tarjeta con capturas) en vez del banner mínimo; las capturas están
+  en `public/capturas/` y las condiciones que Chrome impone —PNG o JPEG, entre 320 y 3840 px,
+  lado mayor ≤ 2.3× el menor, misma proporción entre todas las del mismo `form_factor`— las
+  vigila `pruebas-e2e/pwa.spec.ts`. Se rehacen abriendo la app en modo local a 412×892.
+- `sw.js` — service worker. Cachea solo el armazón del mismo origen; Google (login, Drive,
+  Picker) y `__local-data__` van siempre a la red, porque una respuesta con token o con los
+  datos de la pareja no debe quedarse en el disco del dispositivo. Navegación con `preload` y
+  red primero; recursos con hash, caché primero. **No hace `skipWaiting()` al instalar**: la
+  versión nueva espera a que la persona acepte el aviso (mensaje `ACTIVAR_YA`), para no
+  cambiar el código por debajo de una pantalla con cambios a medio guardar en Drive. Al
+  cambiar la estrategia o los archivos esenciales hay que subir `VERSION`: es lo que tira la
+  caché vieja.
+- `iconos/` — PNG versionados, generados con `node scripts/generar-iconos.mjs` (dibuja la misma
+  marca de dos anillos que `MarcaApp`, sin dependencias). Android necesita las dos familias:
+  `any` con sus esquinas ya redondeadas y `maskable` a sangre, con el dibujo dentro del 80%
+  central que respeta cualquier máscara del sistema.
+- El `<meta name="theme-color">` de `index.html` lo actualiza `lib/tema.ts` al cambiar de tema:
+  es el color de la barra de estado con la app instalada, y ahí no llegan ni las variables CSS
+  ni `oklch()`.
+
+**Cómo se comprueba** (`npm run test:e2e`, también en CI): Playwright con Chromium sobre el
+build, con un servidor estático propio (`pruebas-e2e/servidor.ts`) que puede cambiar el `sw.js`
+servido a mitad de prueba para simular un despliegue. Cubre los criterios de instalación, que
+los iconos y capturas midan lo que declara el manifiesto, el arranque sin conexión, que no se
+cachee nada de otro origen y el aviso de versión nueva de punta a punta. A mano:
+`npm run build && npm run preview` (en `dev` el service worker no se registra a propósito).
 
 ## Variables de entorno
 

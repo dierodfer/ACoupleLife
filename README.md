@@ -39,14 +39,34 @@ Hace falta un proyecto propio en Google Cloud, con la pantalla de consentimiento
 El scope es `drive.file`, así que la aplicación solo puede tocar el archivo que ella misma
 crea. Nunca ve el resto del Drive.
 
+## Instalarla en el móvil
+
+La app se puede instalar en el sistema (PWA) y quedarse en la pantalla de inicio con su icono,
+sin barra de navegador:
+
+- **Android (Chrome):** al abrirla aparece la opción de instalar; también está el botón
+  **Instalar en este dispositivo** en Ajustes → Aplicación, o el menú ⋮ → «Añadir a la pantalla
+  de inicio».
+- **iPhone (Safari):** botón de compartir → «Añadir a inicio». Safari no permite ofrecerlo desde
+  la propia página.
+
+Instalada funciona igual —los datos siguen siendo el archivo de Drive— y arranca sin conexión,
+aunque hasta que haya red no podrá leer ni guardar nada. Cuando se despliega una versión nueva,
+la app avisa con un «Hay una versión nueva · Recargar» en vez de cambiarse por debajo.
+
+Los iconos (`public/iconos/`) están generados y versionados; se rehacen con
+`node scripts/generar-iconos.mjs` solo si cambia la marca.
+
 ## Comandos
 
 | Comando | Qué hace |
 | --- | --- |
 | `npm run dev` | Servidor de desarrollo |
 | `npm test` | Tests de la lógica de cálculo |
+| `npm run test:e2e` | Playwright: instalación, modo sin red y aviso de versión nueva |
 | `npm run typecheck` | Comprobación de tipos |
 | `npm run build` | Build de producción en `dist/` |
+| `npm run preview` | Sirve `dist/` para probar la instalación y el modo sin red |
 
 ## Estructura
 

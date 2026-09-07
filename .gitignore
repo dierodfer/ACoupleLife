@@ -9,3 +9,5 @@ dist-ssr
 *.tsbuildinfo
 coverage
 local-data/
+test-results/
+playwright-report/

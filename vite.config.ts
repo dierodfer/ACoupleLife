@@ -1,7 +1,8 @@
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import path from 'node:path'
-import { defineConfig, type Plugin } from 'vite'
+// De vitest y no de vite, para poder configurar `test` aquí mismo.
+import { defineConfig, type Plugin } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -94,4 +95,8 @@ function datosLocales(): Plugin {
 export default defineConfig({
   base: process.env.VITE_BASE ?? '/ACoupleLife/',
   plugins: [react(), tailwindcss(), datosLocales()],
+  test: {
+    // `pruebas-e2e/` es de Playwright, no de Vitest.
+    include: ['src/**/*.test.ts'],
+  },
 })
