@@ -108,12 +108,22 @@ export function resumenPersona(
 }
 
 /**
- * Sobre cuánto se mide el mes de una persona: su objetivo, salvo que haya
- * aportado de más, en cuyo caso es lo aportado. Así el gráfico del mes se
- * completa en vez de desbordarse, y el excedente sigue viéndose en el reparto
- * de cada tramo. Con 0 no hay nada que repartir: ni objetivo ni aportación.
+ * Sobre cuánto se mide un mes: su objetivo, salvo que se haya aportado de
+ * más, en cuyo caso es lo aportado. Así el gráfico del mes se completa en vez
+ * de desbordarse, y el excedente sigue viéndose en el reparto de cada tramo;
+ * nunca se limita la cifra mostrada al objetivo. Con 0 no hay nada que
+ * repartir: ni objetivo ni aportación.
+ *
+ * Sirve tanto para el mes de una persona (`ResumenPersona`, en el anillo)
+ * como para el mes de la pareja entera (`ResumenMes`, en el calendario del
+ * año): ambos tienen la misma forma de objetivo/gastos/efectivo/transferencias.
  */
-export function baseDelMes(resumen: ResumenPersona): number {
+export function baseDelMes(resumen: {
+  objetivo: number
+  gastos: number
+  efectivo: number
+  transferencias: number
+}): number {
   const aportado = resumen.gastos + resumen.efectivo + resumen.transferencias
   return redondea(Math.max(resumen.objetivo, aportado))
 }
@@ -124,14 +134,18 @@ export function resumenMes(datos: Datos, mes: MesKey): ResumenMes {
   const suma = (campo: keyof ResumenPersona) =>
     redondea(porPersona.reduce((total, r) => total + (r[campo] as number), 0))
 
+  const objetivo = suma('objetivo')
+  const pendiente = suma('pendiente')
+
   return {
     mes,
     porPersona,
-    objetivo: suma('objetivo'),
+    objetivo,
     gastos: suma('gastos'),
     efectivo: suma('efectivo'),
     transferencias: suma('transferencias'),
-    pendiente: suma('pendiente'),
+    aportado: redondea(objetivo - pendiente),
+    pendiente,
   }
 }
 

@@ -13,7 +13,7 @@ import { nombrePersona } from '../lib/personas'
 import type { Datos, MesKey, PersonaId, ResumenPersona } from '../lib/tipos'
 import { useStore } from '../store/useStore'
 import { Donut, PuntoSerie } from './Donut'
-import { IconoCheck, IconoChevron, IconoRepetir } from './Iconos'
+import { IconoCheck, IconoChevron, IconoLapiz, IconoRepetir } from './Iconos'
 import { SelectorMes } from './SelectorMes'
 import { Fila, FilaLista, Grupo, Tarjeta } from './ui'
 
@@ -23,6 +23,7 @@ import { Fila, FilaLista, Grupo, Tarjeta } from './ui'
  */
 export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
+  const abrirModalObjetivo = useStore((s) => s.abrirModalObjetivo)
   const resumen = resumenMes(datos, mes)
 
   return (
@@ -40,8 +41,16 @@ export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
               key={persona.personaId}
               className={`min-w-0 flex-1 px-2 text-center ${i > 0 ? 'border-l border-borde' : ''}`}
             >
-              <p className="truncate text-[13px] text-tenue">
-                {nombrePersona(datos, persona.personaId)}
+              <p className="flex items-center justify-center gap-1 truncate text-[13px] text-tenue">
+                <span className="truncate">{nombrePersona(datos, persona.personaId)}</span>
+                <button
+                  type="button"
+                  aria-label={`Cambiar el objetivo de ${nombrePersona(datos, persona.personaId)} en ${etiquetaMes(mes)}`}
+                  onClick={() => abrirModalObjetivo(persona.personaId)}
+                  className="shrink-0 rounded-full p-0.5 text-sutil transition active:text-acento"
+                >
+                  <IconoLapiz className="h-3 w-3" />
+                </button>
               </p>
               <PendientePersona persona={persona} />
             </div>
@@ -216,7 +225,7 @@ function FilaTramo({
 }>) {
   const [abierto, setAbierto] = useState(false)
 
-  if (detalles.length <= 1) {
+  if (detalles.length === 0) {
     return (
       <Fila
         concepto={<EtiquetaTramo punto={punto} etiqueta={etiqueta} resumen={resumen} />}
@@ -266,7 +275,6 @@ function DesglosePersona({
   persona,
 }: Readonly<{ datos: Datos; persona: ResumenPersona }>) {
   const mes = useStore((s) => s.mes)
-  const abrirPestana = useStore((s) => s.abrirPestana)
   const editarMovimientos = useStore((s) => s.editarMovimientos)
   const base = baseDelMes(persona)
 
@@ -305,12 +313,6 @@ function DesglosePersona({
       </div>
 
       <FilaLista
-        titulo="Objetivo"
-        valor={euros(persona.objetivo)}
-        onClick={() => abrirPestana('objetivos')}
-      />
-
-      <FilaLista
         titulo="Movimientos"
         detalle="Gastos, efectivo y transferencias"
         onClick={() => editarMovimientos(persona.personaId)}
@@ -328,11 +330,13 @@ function CentroDonut({
   if (base === 0) return <span className="text-[15px] text-tenue">Sin objetivo</span>
 
   if (pendiente <= 0) {
+    // `base` es aquí lo aportado, no el objetivo (ver `baseDelMes`): si se ha
+    // aportado de más, se ve la cifra real y no la que se pidió al principio.
     return (
       <>
         <IconoCheck className="h-6 w-6 text-positivo" />
         <span className="text-[15px] font-medium leading-none text-positivo">Al día</span>
-        <span className="cifras text-[12px] leading-tight text-tenue">{euros(objetivo)}</span>
+        <span className="cifras text-[12px] leading-tight text-tenue">{euros(base)}</span>
       </>
     )
   }

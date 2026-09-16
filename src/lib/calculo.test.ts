@@ -64,6 +64,11 @@ describe('resumen del mes', () => {
     expect(resumen.pendiente).toBe(1150)
   })
 
+  it('calcula lo aportado como objetivo menos pendiente', () => {
+    const resumen = resumenMes(datosBase(), '2026-08')
+    expect(resumen.aportado).toBe(850) // 750 de gastos + 100 de efectivo
+  })
+
   it('descuenta las transferencias ya realizadas', () => {
     const datos = datosBase()
     datos.anios['2026']!.transferencias.push({
@@ -239,6 +244,19 @@ describe('base del mes', () => {
 
   it('es cero sin objetivo ni aportaciones', () => {
     expect(baseDelMes(resumenPersona(datosBase(), 'p2', '2019-05'))).toBe(0)
+  })
+
+  it('también sirve para el mes de la pareja entera, en el calendario del año', () => {
+    const datos = datosBase()
+    datos.anios['2026']!.transferencias = [
+      { id: 't1', personaId: 'p1', importe: 900, fecha: '2026-08-20' },
+    ]
+    // Aportado 750 (gastos) + 100 (efectivo) + 900 (transferido) = 1.750, bajo el objetivo de 2.000.
+    expect(baseDelMes(resumenMes(datos, '2026-08'))).toBe(2000)
+
+    datos.anios['2026']!.transferencias[0]!.importe = 2000
+    // Aportado sube a 2.850 y supera el objetivo conjunto: no se limita a él.
+    expect(baseDelMes(resumenMes(datos, '2026-08'))).toBe(2850)
   })
 })
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { liquidacionDelMes, resumenAnio } from '../lib/calculo'
+import { baseDelMes, liquidacionDelMes, resumenAnio } from '../lib/calculo'
 import { NOMBRES_MES, etiquetaMes, mesActual, mesKey, partesMes } from '../lib/fechas'
 import { euros, eurosRedondos } from '../lib/formato'
 import { nombrePersona } from '../lib/personas'
@@ -68,9 +68,10 @@ export function ResumenAnual({ datos }: Readonly<{ datos: Datos }>) {
 }
 
 /**
- * Los doce meses del año con su objetivo. Al tocar uno se abre su desglose
- * debajo, en lugar de saltar directamente a la pantalla del mes: así se puede
- * comparar meses sin salir del año.
+ * Los doce meses del año con su objetivo (`baseDelMes`: lo aportado si supera
+ * al objetivo, ver `calculo.ts`). Al tocar uno se abre su desglose debajo, en
+ * lugar de saltar directamente a la pantalla del mes: así se puede comparar
+ * meses sin salir del año.
  */
 function Calendario({
   datos,
@@ -122,7 +123,7 @@ function Calendario({
                 {ABREVIADOS[i]}
               </span>
               <span className="cifras text-[15px] font-semibold">
-                {eurosRedondos(m.objetivo)}
+                {eurosRedondos(baseDelMes(m))}
               </span>
               <span aria-hidden className="mt-0.5 flex h-1.5 items-center gap-1">
                 {marcas.map((l) => (
