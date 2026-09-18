@@ -4,6 +4,7 @@ import { IconoAjustes, IconoAnio, IconoMes, IconoRecargar } from './componentes/
 import { IndicadorPersona } from './componentes/IndicadorPersona'
 import { ModalEfectivo } from './componentes/ModalEfectivo'
 import { ModalGasto } from './componentes/ModalGasto'
+import { ModalObjetivo } from './componentes/ModalObjetivo'
 import { ModalTransferencia } from './componentes/ModalTransferencia'
 import { PantallaAcceso } from './componentes/PantallaAcceso'
 import { PantallaMovimientos } from './componentes/PantallaMovimientos'
@@ -47,6 +48,7 @@ function Pantallas() {
   const modalGasto = useStore((s) => s.modalGasto)
   const modalTransferencia = useStore((s) => s.modalTransferencia)
   const modalEfectivo = useStore((s) => s.modalEfectivo)
+  const modalObjetivo = useStore((s) => s.modalObjetivo)
 
   useEffect(() => {
     void arrancar()
@@ -99,6 +101,7 @@ function Pantallas() {
       />
       <ModalTransferencia key={`transferencia|${modalTransferencia}`} datos={datos} />
       <ModalEfectivo key={`efectivo|${modalEfectivo}`} datos={datos} />
+      <ModalObjetivo key={`objetivo|${modalObjetivo ?? 'cerrado'}`} datos={datos} />
     </div>
   )
 }

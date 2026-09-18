@@ -103,5 +103,7 @@ export interface ResumenMes {
   gastos: number
   efectivo: number
   transferencias: number
+  /** Objetivo menos pendiente: gastos + efectivo + transferencias de la pareja. */
+  aportado: number
   pendiente: number
 }

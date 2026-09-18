@@ -61,6 +61,8 @@ interface Estado {
   /** Igual que `modalGasto`: solo alta, así que basta con saber si está abierto. */
   modalTransferencia: boolean
   modalEfectivo: boolean
+  /** Persona cuyo objetivo del mes se está editando; `null` = cerrado. */
+  modalObjetivo: PersonaId | null
   /** Claro u oscuro. Preferencia del dispositivo, no del archivo compartido. */
   tema: Tema
   sinGuardar: boolean
@@ -100,6 +102,9 @@ interface Estado {
   cerrarModalTransferencia: () => void
   abrirModalEfectivo: () => void
   cerrarModalEfectivo: () => void
+  /** Abre el modal de objetivo del mes en curso, para la persona indicada. */
+  abrirModalObjetivo: (personaId: PersonaId) => void
+  cerrarModalObjetivo: () => void
   setTema: (tema: Tema) => void
   limpiarError: () => void
 }
@@ -155,6 +160,7 @@ export const useStore = create<Estado>((set, get) => {
     modalGasto: MODAL_GASTO_CERRADO,
     modalTransferencia: false,
     modalEfectivo: false,
+    modalObjetivo: null,
     tema: temaGuardado(),
     sinGuardar: false,
     fallosSeguidos: 0,
@@ -390,6 +396,14 @@ export const useStore = create<Estado>((set, get) => {
 
     cerrarModalEfectivo() {
       set({ modalEfectivo: false })
+    },
+
+    abrirModalObjetivo(personaId) {
+      set({ modalObjetivo: personaId })
+    },
+
+    cerrarModalObjetivo() {
+      set({ modalObjetivo: null })
     },
 
     setTema(tema) {
