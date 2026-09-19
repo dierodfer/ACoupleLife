@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import { useStore } from '../store/useStore'
-import { IconoCandado, IconoNube, IconoPersonas, LogoGoogleDrive } from './Iconos'
+import {
+  IconoChevron,
+  IconoMovimientos,
+  IconoObjetivoMensual,
+  IconoRecibo,
+  LogoGoogleDrive,
+} from './Iconos'
 import { Aviso, Boton, Grupo } from './ui'
 
 /**
@@ -19,21 +25,30 @@ export function PantallaAcceso() {
 
 const VENTAJAS = [
   {
-    Icono: IconoNube,
-    titulo: 'Tus datos, en tu Drive',
-    detalle: 'Todo vive en un único archivo JSON de vuestro Google Drive. No hay servidor ni base de datos.',
+    Icono: IconoObjetivoMensual,
+    tono: 'positivo' as const,
+    titulo: 'Objetivo mensual',
+    detalle: 'Cada uno tiene su cantidad.',
   },
   {
-    Icono: IconoCandado,
-    titulo: 'Acceso mínimo',
-    detalle: 'La aplicación solo puede abrir el archivo que ella misma crea; el resto de tu Drive queda fuera.',
+    Icono: IconoRecibo,
+    tono: 'acento' as const,
+    titulo: 'Gastos',
+    detalle: 'Anotad los gastos del día a día.',
   },
   {
-    Icono: IconoPersonas,
-    titulo: 'A dos manos',
-    detalle: 'Compartís el mismo archivo y cada uno ve al momento lo que ha apuntado la otra persona.',
+    Icono: IconoMovimientos,
+    tono: 'serie-transferido' as const,
+    titulo: 'Movimientos',
+    detalle: 'Registrad transferencias y ajustes.',
   },
 ]
+
+const TONO_ICONO = {
+  positivo: 'bg-positivo/15 text-positivo',
+  acento: 'bg-acento/15 text-acento',
+  'serie-transferido': 'bg-serie-transferido/15 text-serie-transferido',
+}
 
 /**
  * Primera pantalla de todas: presenta la aplicación y conecta con Drive. Es la
@@ -57,68 +72,73 @@ function PantallaConectar() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-8 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))]">
-      <div className="flex flex-1 flex-col justify-center gap-8">
-        <header className="flex flex-col items-center text-center">
-          <MarcaApp />
-          <h1 className="titulo-grande mt-5">Cuentas de pareja</h1>
-          <p className="mt-2 text-[17px] text-tenue">¿Cuánto tengo que transferir este mes?</p>
+    <main className="relative mx-auto flex min-h-dvh max-w-md flex-col overflow-hidden px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))]">
+      <div aria-hidden className="pointer-events-none absolute -left-20 -top-16 h-72 w-72 rounded-full bg-acento/10 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -bottom-20 -right-16 h-72 w-72 rounded-full bg-serie-gastos/15 blur-3xl" />
+
+      <div className="relative flex flex-1 flex-col justify-center gap-9">
+        <header className="flex flex-col gap-3">
+          <NotaManuscrita />
+          <h1 className="titulo-grande">Cuentas compartidas</h1>
+          <p className="text-[17px] text-tenue">
+            Un objetivo al mes.
+            <br />
+            Todos los gastos bajo control.
+          </p>
         </header>
 
-        <Grupo>
-          {VENTAJAS.map(({ Icono, titulo, detalle }) => (
-            <div
-              key={titulo}
-              className="relative flex items-start gap-3 px-4 py-3 after:absolute after:left-4 after:right-0 after:top-0 after:h-px after:bg-borde first:after:hidden"
-            >
-              <Icono className="mt-0.5 h-5 w-5 shrink-0 text-acento" />
+        <div className="flex flex-col gap-5">
+          {VENTAJAS.map(({ Icono, tono, titulo, detalle }) => (
+            <div key={titulo} className="flex items-center gap-4">
+              <div
+                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${TONO_ICONO[tono]}`}
+              >
+                <Icono className="h-6 w-6" />
+              </div>
               <div className="min-w-0">
-                <p className="text-[15px] font-medium">{titulo}</p>
-                <p className="mt-0.5 text-[13px] text-tenue">{detalle}</p>
+                <p className="text-[17px] font-semibold">{titulo}</p>
+                <p className="mt-0.5 text-[15px] text-tenue">{detalle}</p>
               </div>
             </div>
           ))}
-        </Grupo>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-3">
+      <div className="relative flex flex-col gap-3 pt-8">
         {error && <Aviso tono="error">{error}</Aviso>}
 
         <button
           type="button"
           disabled={conectando}
           onClick={() => void conectar()}
-          className="flex min-h-[52px] w-full items-center justify-center gap-3 rounded-fila border border-borde bg-superficie px-4 text-[17px] font-medium text-tinta shadow-sm transition active:opacity-70 disabled:pointer-events-none disabled:opacity-50"
+          className="flex min-h-[56px] w-full items-center gap-3 rounded-fila bg-acento px-5 text-[17px] font-semibold text-white shadow-lg shadow-acento/25 transition active:opacity-80 disabled:pointer-events-none disabled:opacity-50"
         >
           <LogoGoogleDrive className="h-5 w-5" />
-          {conectando ? 'Conectando…' : 'Conectar con Google Drive'}
+          <span className="flex-1 text-left">
+            {conectando ? 'Conectando…' : 'Conectar con Google Drive'}
+          </span>
+          <IconoChevron className="h-5 w-5 shrink-0" />
         </button>
 
         <p className="encabezado-grupo px-2 text-center text-tenue">
-          Se abrirá una ventana de Google para que autorices el acceso. Puedes retirarlo cuando
-          quieras desde tu cuenta.
+          Podrás retirar el acceso cuando quieras.
         </p>
       </div>
     </main>
   )
 }
 
-/** Icono de la aplicación: dos anillos entrelazados, la pareja. */
-function MarcaApp() {
+/** La coletilla manuscrita de la cabecera, ladeada como una anotación a mano. */
+function NotaManuscrita() {
   return (
-    <div className="flex h-[72px] w-[72px] items-center justify-center rounded-[22px] bg-acento shadow-lg shadow-acento/25">
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="white"
-        strokeWidth={1.75}
-        aria-hidden
-        className="h-9 w-9"
-      >
-        <circle cx="9" cy="12" r="5.25" />
-        <circle cx="15" cy="12" r="5.25" />
-      </svg>
-    </div>
+    <p
+      className="self-end text-[15px] italic leading-tight text-tenue"
+      style={{ transform: 'rotate(-4deg)' }}
+    >
+      Más fácil
+      <br />
+      juntos
+    </p>
   )
 }
 

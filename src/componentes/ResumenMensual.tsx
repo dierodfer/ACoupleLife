@@ -13,7 +13,7 @@ import { nombrePersona } from '../lib/personas'
 import type { Datos, MesKey, PersonaId, ResumenPersona } from '../lib/tipos'
 import { useStore } from '../store/useStore'
 import { Donut, PuntoSerie } from './Donut'
-import { IconoCheck, IconoChevron, IconoLapiz, IconoRepetir } from './Iconos'
+import { IconoCheck, IconoChevron, IconoRepetir } from './Iconos'
 import { SelectorMes } from './SelectorMes'
 import { Fila, FilaLista, Grupo, Tarjeta } from './ui'
 
@@ -41,16 +41,8 @@ export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
               key={persona.personaId}
               className={`min-w-0 flex-1 px-2 text-center ${i > 0 ? 'border-l border-borde' : ''}`}
             >
-              <p className="flex items-center justify-center gap-1 truncate text-[13px] text-tenue">
-                <span className="truncate">{nombrePersona(datos, persona.personaId)}</span>
-                <button
-                  type="button"
-                  aria-label={`Cambiar el objetivo de ${nombrePersona(datos, persona.personaId)} en ${etiquetaMes(mes)}`}
-                  onClick={() => abrirModalObjetivo(persona.personaId)}
-                  className="shrink-0 rounded-full p-0.5 text-sutil transition active:text-acento"
-                >
-                  <IconoLapiz className="h-3 w-3" />
-                </button>
+              <p className="truncate text-[13px] text-tenue">
+                {nombrePersona(datos, persona.personaId)}
               </p>
               <PendientePersona persona={persona} />
             </div>
@@ -65,6 +57,15 @@ export function ResumenMensual({ datos }: Readonly<{ datos: Datos }>) {
 
         <div className="mt-3 border-t border-borde pt-2 text-left">
           <Fila concepto="Objetivo conjunto" importe={euros(resumen.objetivo)} />
+          <button
+            type="button"
+            aria-label={`Cambiar el objetivo individual de ${etiquetaMes(mes)}`}
+            onClick={() => abrirModalObjetivo(resumen.porPersona[0]?.personaId ?? '')}
+            className="flex w-full items-center justify-between gap-3 py-1.5 text-left active:opacity-60"
+          >
+            <span className="text-[15px] text-tenue">Objetivo individual</span>
+            <IconoChevron className="h-4 w-4 shrink-0 text-sutil" />
+          </button>
         </div>
       </Tarjeta>
 
