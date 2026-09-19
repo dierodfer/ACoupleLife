@@ -137,29 +137,33 @@ export function IconoDeshacer(props: Props) {
   )
 }
 
-export function IconoNube(props: Props) {
+/** Diana con flecha: el objetivo mensual de cada persona. */
+export function IconoObjetivoMensual(props: Props) {
   return (
     <Svg {...props}>
-      <path d="M7 19a4.5 4.5 0 0 1-.5-8.97 5.5 5.5 0 0 1 10.6-1.48A4.25 4.25 0 0 1 17.5 19Z" />
+      <circle cx="10.5" cy="13.5" r="7" />
+      <circle cx="10.5" cy="13.5" r="3.25" />
+      <path d="M12.5 11.5l6-6M14.5 5.5H19v4.5" />
     </Svg>
   )
 }
 
-export function IconoCandado(props: Props) {
+/** Ticket con el borde festoneado, para los gastos del día a día. */
+export function IconoRecibo(props: Props) {
   return (
     <Svg {...props}>
-      <rect x="4.5" y="10" width="15" height="10.5" rx="3" />
-      <path d="M8 10V7.5a4 4 0 0 1 8 0V10" />
+      <path d="M6 4h12v15l-1.5-1-1.5 1-1.5-1-1.5 1-1.5-1-1.5 1-1.5-1-1.5 1V4Z" />
+      <path d="M9 9h6M9 12.5h6" />
     </Svg>
   )
 }
 
-export function IconoPersonas(props: Props) {
+/** Dos flechas cruzadas: transferencias y ajustes entre las dos personas. */
+export function IconoMovimientos(props: Props) {
   return (
     <Svg {...props}>
-      <circle cx="9" cy="8" r="3.25" />
-      <path d="M3 19.5a6 6 0 0 1 12 0" />
-      <path d="M16.5 5.2a3.25 3.25 0 0 1 0 5.6M18 14.2a6 6 0 0 1 3 5.3" />
+      <path d="M4 8.5h13M13.5 4.5l4 4-4 4" />
+      <path d="M20 15.5H7M11.5 11.5l-4 4 4 4" />
     </Svg>
   )
 }
