@@ -54,7 +54,7 @@ function Pantallas() {
     void arrancar()
   }, [arrancar])
 
-  if (estado === 'arrancando') {
+  if (estado === 'arrancando' || (estado === 'cargando' && !datos)) {
     return <p className="p-6 text-center text-[15px] text-tenue">Cargando…</p>
   }
 

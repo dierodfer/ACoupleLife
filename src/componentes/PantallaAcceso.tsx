@@ -129,13 +129,10 @@ function MarcaApp() {
  * nuevo o se abre el que ya tiene la otra persona.
  */
 function PantallaOnboarding() {
-  const estado = useStore((s) => s.estado)
   const usuario = useStore((s) => s.usuario)
   const error = useStore((s) => s.error)
   const crearArchivo = useStore((s) => s.crearArchivo)
   const conectarArchivo = useStore((s) => s.conectarArchivo)
-
-  const cargando = estado === 'cargando'
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-8 px-5 py-10">
@@ -149,12 +146,7 @@ function PantallaOnboarding() {
       <div className="flex flex-col gap-6">
         <Grupo pie="Google te pedirá que elijas el archivo cuentas-pareja.json una sola vez. Después la aplicación lo recuerda.">
           <div className="p-4">
-            <Boton
-              variante="principal"
-              className="w-full"
-              disabled={cargando}
-              onClick={() => void conectarArchivo()}
-            >
+            <Boton variante="principal" className="w-full" onClick={() => void conectarArchivo()}>
               Sí, abrir nuestras cuentas
             </Boton>
           </div>
@@ -162,8 +154,8 @@ function PantallaOnboarding() {
 
         <Grupo pie="Se creará el archivo en tu Drive. Luego podrás invitar a tu pareja desde Ajustes.">
           <div className="p-4">
-            <Boton className="w-full" disabled={cargando} onClick={() => void crearArchivo()}>
-              {cargando ? 'Creando…' : 'No, empezar de cero'}
+            <Boton className="w-full" onClick={() => void crearArchivo()}>
+              No, empezar de cero
             </Boton>
           </div>
         </Grupo>
