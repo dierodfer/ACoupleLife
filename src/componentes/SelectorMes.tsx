@@ -16,15 +16,6 @@ export function SelectorMes({ datos }: Readonly<{ datos: Datos }>) {
   const mes = useStore((s) => s.mes)
   const irAMes = useStore((s) => s.irAMes)
   const [anioVisible, setAnioVisible] = useState(partesMes(mes).anio)
-  // Las flechas de mes pueden cruzar de año (p. ej. diciembre a enero): la
-  // rejilla de abajo sigue al mes que se está viendo. Al año lo mueve solo
-  // esto, no el usuario navegando la rejilla, así que no pisa una vista de
-  // otro año que se esté explorando sin cambiar de mes.
-  const [ultimoMes, setUltimoMes] = useState(mes)
-  if (ultimoMes !== mes) {
-    setUltimoMes(mes)
-    setAnioVisible(partesMes(mes).anio)
-  }
 
   const hoy = mesActual()
   const anios = aniosConDatos(datos)
