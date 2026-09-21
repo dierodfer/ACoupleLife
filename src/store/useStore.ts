@@ -6,6 +6,7 @@ import { aplicarTema, temaGuardado, type Tema } from '../lib/tema'
 import type { Datos, MesKey, PersonaId } from '../lib/tipos'
 import type { Usuario } from '../services/auth'
 import { auth, drive } from '../services/backend'
+import { intentarSalir } from '../services/navegacionAtras'
 
 const CLAVE_ARCHIVO = 'acouplelife.fileId'
 const RETARDO_AUTOGUARDADO = 2000
@@ -105,6 +106,16 @@ interface Estado {
   /** Abre el modal de objetivo del mes en curso, para la persona indicada. */
   abrirModalObjetivo: (personaId: PersonaId) => void
   cerrarModalObjetivo: () => void
+  /** Última pregunta antes de salir, ver `atras()`. */
+  modalConfirmarSalir: boolean
+  cerrarModalConfirmarSalir: () => void
+  /**
+   * Un solo mando para el botón atrás del sistema (`services/navegacionAtras.ts`):
+   * cierra el modal que esté abierto, si no hay ninguno vuelve de la
+   * subpantalla actual, y en la pantalla raíz pregunta si se quiere salir.
+   * Un segundo atrás con esa pregunta ya en pantalla lo intenta de verdad.
+   */
+  atras: () => void
   setTema: (tema: Tema) => void
   limpiarError: () => void
 }
@@ -161,6 +172,7 @@ export const useStore = create<Estado>((set, get) => {
     modalTransferencia: false,
     modalEfectivo: false,
     modalObjetivo: null,
+    modalConfirmarSalir: false,
     tema: temaGuardado(),
     sinGuardar: false,
     fallosSeguidos: 0,
@@ -404,6 +416,39 @@ export const useStore = create<Estado>((set, get) => {
 
     cerrarModalObjetivo() {
       set({ modalObjetivo: null })
+    },
+
+    cerrarModalConfirmarSalir() {
+      set({ modalConfirmarSalir: false })
+    },
+
+    atras() {
+      const s = get()
+      if (s.modalGasto.abierto) {
+        s.cerrarModalGasto()
+        return
+      }
+      if (s.modalTransferencia) {
+        s.cerrarModalTransferencia()
+        return
+      }
+      if (s.modalEfectivo) {
+        s.cerrarModalEfectivo()
+        return
+      }
+      if (s.modalObjetivo !== null) {
+        s.cerrarModalObjetivo()
+        return
+      }
+      if (s.modalConfirmarSalir) {
+        intentarSalir()
+        return
+      }
+      if (s.historial.length > 0) {
+        s.volver()
+        return
+      }
+      set({ modalConfirmarSalir: true })
     },
 
     setTema(tema) {

@@ -90,6 +90,15 @@ para documentar el formato de cada cadena.
         `controllerchange`, ignorando el primer relevo —el `clients.claim()` de la instalación
         inicial, que si no haría parpadear la app en su estreno—.
      Tiene tests (`pwa.test.ts`), y el comportamiento real en `pruebas-e2e/pwa.spec.ts`.
+   - `navegacionAtras.ts` — el botón o gesto atrás de Android navega el historial del
+     navegador, no la app: con una sola entrada en la pila, el primer atrás cierra la PWA sin
+     avisar. Se blinda empujando una entrada de más al historial (un «centinela») nada más
+     arrancar, desde `main.tsx`; ese atrás se consume como un `popstate` normal de la página en
+     vez de salir de golpe, y `useStore.atras()` decide qué hacer con él —cerrar el modal que
+     esté abierto, volver de una subpantalla con `volver()`, o preguntar si se quiere salir—.
+     Cada atrás vuelve a armar el centinela. `intentarSalir()` solo tiene efecto con la app
+     instalada (Chrome permite `window.close()` en modo `standalone`); en el resto no hace
+     nada más. Tiene tests (`navegacionAtras.test.ts`), porque también ocurre sin interfaz.
 
 3. **`src/store/useStore.ts`** — el único punto que conecta lib + services + UI, con Zustand.
    - Máquina de estados explícita en `EstadoApp` (`arrancando` → `sinSesion`/`sinArchivo` →

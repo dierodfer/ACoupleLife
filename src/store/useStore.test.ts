@@ -8,7 +8,7 @@ import type { Datos } from '../lib/tipos'
  * cuando la red falla.
  */
 
-const { auth, drive, ConflictoFalso } = vi.hoisted(() => {
+const { auth, drive, ConflictoFalso, intentarSalir } = vi.hoisted(() => {
   class ConflictoFalso extends Error {
     constructor(public readonly versionRemota: string) {
       super('El archivo ha cambiado en Drive.')
@@ -16,6 +16,7 @@ const { auth, drive, ConflictoFalso } = vi.hoisted(() => {
   }
   return {
     ConflictoFalso,
+    intentarSalir: vi.fn(),
     auth: {
       entrar: vi.fn(),
       salir: vi.fn(),
@@ -34,6 +35,7 @@ const { auth, drive, ConflictoFalso } = vi.hoisted(() => {
 })
 
 vi.mock('../services/backend', () => ({ auth, drive }))
+vi.mock('../services/navegacionAtras', () => ({ intentarSalir }))
 
 const { ESPERAS_REINTENTO, useStore } = await import('./useStore')
 
@@ -249,6 +251,53 @@ describe('conflicto', () => {
     expect(useStore.getState().datos?.personas[0]?.nombre).toBe('Version remota')
     expect(useStore.getState().sinGuardar).toBe(false)
     expect(drive.guardar).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('atrás del sistema', () => {
+  beforeEach(() => {
+    useStore.setState({
+      pestana: 'mes',
+      historial: [],
+      modalGasto: { abierto: false, editandoId: null, tipoInicial: 'puntual' },
+      modalTransferencia: false,
+      modalEfectivo: false,
+      modalObjetivo: null,
+      modalConfirmarSalir: false,
+    })
+  })
+
+  it('con un modal abierto, lo cierra sin tocar la subpantalla', () => {
+    useStore.setState({ pestana: 'objetivos', historial: ['mes'], modalTransferencia: true })
+
+    useStore.getState().atras()
+
+    expect(useStore.getState().modalTransferencia).toBe(false)
+    expect(useStore.getState().pestana).toBe('objetivos')
+  })
+
+  it('sin modales, vuelve de la subpantalla', () => {
+    useStore.getState().abrirPestana('objetivos')
+
+    useStore.getState().atras()
+
+    expect(useStore.getState().pestana).toBe('mes')
+    expect(useStore.getState().historial).toEqual([])
+  })
+
+  it('en la raíz, sin nada que cerrar, pregunta si se quiere salir', () => {
+    useStore.getState().atras()
+
+    expect(useStore.getState().modalConfirmarSalir).toBe(true)
+    expect(intentarSalir).not.toHaveBeenCalled()
+  })
+
+  it('un segundo atrás con la pregunta ya en pantalla lo intenta de verdad', () => {
+    useStore.setState({ modalConfirmarSalir: true })
+
+    useStore.getState().atras()
+
+    expect(intentarSalir).toHaveBeenCalledTimes(1)
   })
 })
 

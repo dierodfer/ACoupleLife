@@ -2,6 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { Ajustes } from './componentes/Ajustes'
 import { IconoAjustes, IconoAnio, IconoMes, IconoRecargar } from './componentes/Iconos'
 import { IndicadorPersona } from './componentes/IndicadorPersona'
+import { ModalConfirmarSalir } from './componentes/ModalConfirmarSalir'
 import { ModalEfectivo } from './componentes/ModalEfectivo'
 import { ModalGasto } from './componentes/ModalGasto'
 import { ModalObjetivo } from './componentes/ModalObjetivo'
@@ -35,6 +36,8 @@ export function App() {
     <>
       <AvisoVersionNueva />
       <Pantallas />
+      {/* Fuera de `Pantallas`: el atrás del sistema puede pedirla antes de iniciar sesión. */}
+      <ModalConfirmarSalir />
     </>
   )
 }
