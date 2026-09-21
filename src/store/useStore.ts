@@ -109,12 +109,7 @@ interface Estado {
   /** Última pregunta antes de salir, ver `atras()`. */
   modalConfirmarSalir: boolean
   cerrarModalConfirmarSalir: () => void
-  /**
-   * Un solo mando para el botón atrás del sistema (`services/navegacionAtras.ts`):
-   * cierra el modal que esté abierto, si no hay ninguno vuelve de la
-   * subpantalla actual, y en la pantalla raíz pregunta si se quiere salir.
-   * Un segundo atrás con esa pregunta ya en pantalla lo intenta de verdad.
-   */
+  /** Un solo mando para el botón atrás del sistema, ver `services/navegacionAtras.ts`. */
   atras: () => void
   setTema: (tema: Tema) => void
   limpiarError: () => void

@@ -15,8 +15,7 @@ vigilarCambiosSinGuardar()
 vigilarInstalacion()
 registrarServiceWorker()
 
-// El botón atrás del sistema (ver services/navegacionAtras.ts): cierra
-// modales, vuelve de una subpantalla o pregunta si se quiere salir.
+// El botón atrás del sistema (ver services/navegacionAtras.ts).
 vigilarAtras(() => useStore.getState().atras())
 
 const raiz = document.getElementById('root')

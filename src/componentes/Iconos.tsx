@@ -137,7 +137,6 @@ export function IconoDeshacer(props: Props) {
   )
 }
 
-/** Diana con flecha: el objetivo mensual de cada persona. */
 export function IconoObjetivoMensual(props: Props) {
   return (
     <Svg {...props}>
@@ -148,7 +147,6 @@ export function IconoObjetivoMensual(props: Props) {
   )
 }
 
-/** Ticket con el borde festoneado, para los gastos del día a día. */
 export function IconoRecibo(props: Props) {
   return (
     <Svg {...props}>
@@ -158,7 +156,6 @@ export function IconoRecibo(props: Props) {
   )
 }
 
-/** Dos flechas cruzadas: transferencias y ajustes entre las dos personas. */
 export function IconoMovimientos(props: Props) {
   return (
     <Svg {...props}>

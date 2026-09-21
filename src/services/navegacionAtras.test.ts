@@ -2,8 +2,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { intentarSalir, vigilarAtras } from './navegacionAtras'
 
-// Como en pwa.test.ts: se vigila una sola vez para todo el archivo, igual que
-// `main.tsx` lo hace una sola vez para toda la app.
+// Como en pwa.test.ts: se vigila una sola vez para todo el archivo.
 const empujar = vi.spyOn(history, 'pushState')
 const alPulsar = vi.fn()
 vigilarAtras(alPulsar)
